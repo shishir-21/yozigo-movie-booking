@@ -128,6 +128,78 @@ bookingsRouter.post('/shows/:showId/bookings', async (request: Request, response
   }
 });
 
+
+bookingsRouter.post('/bookings/:bookingId/cancel', async (request: Request, response: Response, next: NextFunction) => {
+  const userId = authenticatedUserId(request);
+  if (!userId) {
+    response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Sign in to cancel a booking.' } });
+    return;
+  }
+  const parsedId = idSchema.safeParse(request.params.bookingId);
+  if (!parsedId.success) {
+    response.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Provide a valid booking ID.' } });
+    return;
+  }
+
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  try {
+    const booking = await prisma.$transaction(async (tx) => {
+      const current = await tx.booking.findUnique({
+        where: { id: parsedId.data },
+        include: {
+          seats: { select: { seatId: true } },
+          show: { select: { startsAt: true } },
+        },
+      });
+      if (!current || current.userId !== userId) {
+        throw Object.assign(new Error('BOOKING_NOT_FOUND'), { code: 'BOOKING_NOT_FOUND' });
+      }
+      if (current.status !== 'CONFIRMED') {
+        throw Object.assign(new Error('BOOKING_NOT_CANCELLABLE'), { code: 'BOOKING_NOT_CANCELLABLE' });
+      }
+      if (current.show.startsAt <= cutoff) {
+        throw Object.assign(new Error('CANCELLATION_WINDOW_CLOSED'), { code: 'CANCELLATION_WINDOW_CLOSED' });
+      }
+
+      const updated = await tx.booking.update({
+        where: { id: current.id },
+        data: { status: 'CANCELLED' },
+      });
+      await tx.seatClaim.deleteMany({
+        where: {
+          showId: current.showId,
+          seatId: { in: current.seats.map((seat) => seat.seatId) },
+          userId,
+          kind: 'BOOKED',
+        },
+      });
+      return updated;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    response.status(200).json({ booking: { id: booking.id, status: booking.status }, message: 'Booking cancelled. Your seats are available again.' });
+  } catch (error) {
+    const code = errorCode(error);
+    if (code === 'BOOKING_NOT_FOUND') {
+      response.status(404).json({ error: { code, message: 'Booking not found for this account.' } });
+      return;
+    }
+    if (code === 'BOOKING_NOT_CANCELLABLE') {
+      response.status(409).json({ error: { code, message: 'Only confirmed bookings can be cancelled.' } });
+      return;
+    }
+    if (code === 'CANCELLATION_WINDOW_CLOSED') {
+      response.status(409).json({ error: { code, message: 'Bookings can only be cancelled more than two hours before the show starts.' } });
+      return;
+    }
+    if (code === 'P2034') {
+      response.status(409).json({ error: { code: 'BOOKING_CONFLICT', message: 'This booking changed while you were cancelling it. Refresh and try again.' } });
+      return;
+    }
+    next(error);
+  }
+});
+
 bookingsRouter.get('/bookings/me', async (request: Request, response: Response, next: NextFunction) => {
   const userId = authenticatedUserId(request);
   if (!userId) {
