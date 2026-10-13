@@ -1,70 +1,82 @@
 # Yozigo Movie Booking
 
-A movie ticket booking application built for the Yozigo Full-Stack Developer Intern assessment.
+A movie ticket booking application for the Yozigo Full-Stack Developer Intern assessment.
 
-## Planned stack
+## Stack
 
-- **Frontend:** React, TypeScript, Vite
-- **API:** Node.js, Express, TypeScript
-- **Database:** PostgreSQL with Prisma ORM
-- **Authentication:** email/password, bcrypt password hashing, JWT
-- **Testing:** Vitest and Supertest for API tests; concurrency tests for double booking
-- **Local development:** Docker Compose
+- Frontend: React, TypeScript, Vite
+- API: Node.js, Express, TypeScript
+- Database: PostgreSQL 16, Prisma
+- Auth (next slice): bcrypt password hashing, JWT
+- Tests: Vitest and Supertest
+- Local services: Docker Compose
 
 ## Development status
 
-This project is being implemented in staged, testable slices. Required flows 1–7 take priority over optional flows 8–10.
+The project is being delivered in small, verifiable slices. Required Flows 1–7 take priority over bonus Flows 8–10.
 
-- [x] Project foundation, database model, local services, API health check
-- [ ] Customer authentication and authorization
-- [ ] Movie and show browsing
-- [ ] Seat map, seat holds, and expiration
-- [ ] Mock payments and concurrency-safe booking confirmation
+- [x] Initial monorepo, React page shell, API health endpoint
+- [x] Initial Prisma data model and idempotent 80-seat seed
+- [x] Initial API health and unknown-route tests
+- [ ] Verify install, generated Prisma client, TypeScript builds and tests in CI/local environment
+- [ ] Customer sign-up/login and API authorization
+- [ ] Movie/show browsing backed by PostgreSQL
+- [ ] Seat map, 5-minute seat holds and expiry
+- [ ] Mock payment and concurrency-safe booking confirmation
 - [ ] Customer booking history
 - [ ] Admin movie/show management and overlap validation
-- [ ] Optional flows 8–10
+- [ ] Bonus Flows 8–10
 
-The checklist will be updated as each slice is implemented and verified.
+**Current limitation:** the landing page currently uses demonstration movie data, and booking controls are intentionally disabled until the API features are implemented. The complete booking flow is not done yet.
 
-## Prerequisites
+## Requirements
 
-- Node.js 22 or later
+- Node.js 22+
 - npm
-- Docker Desktop with Docker Compose
+- Docker Desktop or Docker Engine with Compose
 
-## Setup
+## Local setup
 
-1. Copy `.env.example` to `.env`.
-2. Start PostgreSQL with `docker compose up -d db`.
-3. Install workspace dependencies with `npm install`.
-4. Generate Prisma Client and apply migrations: `npm run db:generate`, then `npm run db:migrate`.
-5. Start the API and web app with `npm run dev`.
+1. Clone the repository and enter the folder.
+2. Copy the environment template: `cp .env.example .env` (PowerShell: `Copy-Item .env.example .env`).
+3. Start PostgreSQL: `docker compose up -d db`.
+4. Install dependencies: `npm install`.
+5. Generate Prisma Client: `npm run db:generate`.
+6. Apply the development migration: `npm run db:migrate`.
+7. Seed the 80 seats: `npm run db:seed`.
+8. Start API and frontend: `npm run dev`.
 
-See the package scripts in the root and workspace package manifests for the exact commands. Do not commit real secrets or your local `.env` file.
+The API health check will be available at `http://localhost:4000/api/health`; the web app will be at `http://localhost:5173`.
 
 ## Database design
 
-- `User`: customer/admin identity, unique email, hashed password, role.
-- `Movie`: movie metadata and rating.
-- `Show`: movie, start time, ticket price. The application validates the single-screen schedule for overlaps.
-- `Seat`: fixed seat identities (rows A–H, numbers 1–10).
-- `SeatHold`: temporary ownership of a seat for a show, with expiry.
-- `Booking`: booking owner, show, total amount and status.
-- `BookingSeat`: seats attached to a booking.
+- `User`: unique email, display name, password hash, role (`CUSTOMER` or `ADMIN`). Public sign-up will always create customers.
+- `Movie`: title, poster URL, language, duration and rating.
+- `Show`: a movie's start time and ticket price in paise.
+- `Seat`: the fixed 8 × 10 grid, rows A–H and seats 1–10.
+- `SeatHold`: a user's temporary hold on one seat for one show, with expiry and status.
+- `Booking`: owner, show, amount, status, and optional converted hold.
+- `BookingSeat`: seat assignments attached to a booking.
 
-Booking safety relies on a PostgreSQL transaction and database uniqueness for `(showId, seatId)` among active holds/bookings. Expired holds must be treated as available and cleaned/ignored transactionally; application checks alone are not sufficient. The implementation will document the specific constraints and test coverage as booking endpoints are added.
+### Booking concurrency design (to be completed with Flow 4/5)
+
+Correctness must be enforced by PostgreSQL transactions and constraints, not only by the UI. A key schema detail still needed is a database-enforced single active claim per `(showId, seatId)` across both current holds and confirmed bookings. PostgreSQL cannot express a time-dependent partial uniqueness rule using `expiresAt > now()`; the implementation will therefore use an explicit claim/seat-allocation model or transactional row locking plus durable uniqueness. The double-booking test must exercise concurrent database transactions against PostgreSQL.
 
 ## Test accounts
 
-Seeded test customer and admin credentials will be documented here when the seed script is added. Never use production credentials in this section.
+Test customer and admin credentials will be added with the trusted seed script when authentication is implemented. They are not available in this foundation slice.
 
-## Tests
+## Verification
 
-Run `npm test` from the repository root. The critical booking tests will include concurrent attempts to acquire the same seat and assert that at most one request succeeds.
+- API smoke tests: `npm test`
+- Type checks: `npm run lint`
+- Production builds: `npm run build`
+
+A GitHub Actions workflow is configured to run install, Prisma generation, type checks, tests, and builds on pushes and pull requests. Its status should be checked before treating a slice as verified.
 
 ## Security notes
 
-- Passwords are stored as hashes, never plaintext.
-- Admin role is assigned only by trusted seed/admin tooling, not public sign-up.
-- Protected routes are checked by the API, not only hidden in the frontend.
-- Configure strong local secrets in `.env`; do not commit them.
+- Never commit `.env` or real credentials.
+- Passwords will be hashed with bcrypt; no plaintext passwords are stored.
+- Admin privileges are assigned only by trusted seed/admin tooling.
+- All protected operations will validate authorization in the API.
