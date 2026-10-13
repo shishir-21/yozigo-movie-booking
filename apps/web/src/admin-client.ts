@@ -36,6 +36,27 @@ export interface AdminShowReport {
   }>;
 }
 
+
+export interface AdminAnalytics {
+  from: string | null;
+  to: string | null;
+  showCount: number;
+  confirmedBookings: number;
+  seatsSold: number;
+  capacity: number;
+  moneyCollectedPaise: number;
+  shows: Array<{
+    showId: string;
+    movieTitle: string;
+    startsAt: string;
+    capacity: number;
+    confirmedBookings: number;
+    seatsSold: number;
+    percentageFull: number;
+    moneyCollectedPaise: number;
+  }>;
+}
+
 export interface MovieInput {
   title: string;
   posterUrl?: string | null;
@@ -76,3 +97,11 @@ export const updateAdminShow = (token: string, showId: string, input: Partial<Sh
 export const deleteAdminShow = (token: string, showId: string) => adminRequest<void>(`/api/admin/shows/${encodeURIComponent(showId)}`, token, { method: 'DELETE' });
 
 export const getAdminShowReport = (token: string, showId: string) => adminRequest<{ report: AdminShowReport }>(`/api/admin/shows/${encodeURIComponent(showId)}/report`, token);
+
+export const getAdminAnalytics = (token: string, filters: { from?: string; to?: string } = {}) => {
+  const params = new URLSearchParams();
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  const query = params.toString();
+  return adminRequest<{ analytics: AdminAnalytics }>(`/api/admin/analytics${query ? `?${query}` : ''}`, token);
+};
