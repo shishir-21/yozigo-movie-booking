@@ -25,12 +25,12 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Public movie catalogue and upcoming showtime APIs backed by PostgreSQL, with frontend loading/error states
 - [x] Show-specific seat map and availability API/UI
 - [x] Five-minute seat holds, release, expiry, and conflict-safe claim creation
-- [ ] Mock payment and concurrency-safe booking confirmation
-- [ ] Customer booking history
+- [x] Mock payment and concurrency-safe booking confirmation API and frontend checkout
+- [x] Customer booking history API
 - [ ] Admin movie/show management and overlap validation
 - [ ] Bonus Flows 8–10
 
-**Current limitation:** the movie catalogue is read from PostgreSQL and the seed script creates fictional demo movies and upcoming shows. Seat availability is visible for each movie's next upcoming show. Booking controls remain disabled until temporary seat holds, payments, and booking confirmation are implemented. Authentication is available through the Sign in and Create account controls; the complete booking flow is not done yet.
+**Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration, refunds, and admin management are not implemented yet.
 
 ## Requirements
 
@@ -138,3 +138,13 @@ GitHub Actions runs install, Prisma generation, type checks, tests, and builds o
 - `DELETE /api/shows/:showId/holds/:holdId` releases an active hold owned by the authenticated customer. A customer cannot release another customer's hold.
 - Expired `SeatClaim` records are removed during hold creation; the associated `SeatHold` is marked `EXPIRED`. A unique database constraint on `(showId, seatId)` plus a serializable transaction protects claim creation from competing requests. Conflicts return `409 SEAT_UNAVAILABLE`.
 - Payment and confirmed booking conversion remain out of scope for this step.
+
+
+## Seat holds, mock checkout, and bookings
+
+- `POST /api/shows/:showId/holds` creates a five-minute hold for an authenticated customer.
+- `DELETE /api/shows/:showId/holds/:holdId` releases the customer's active hold.
+- `POST /api/shows/:showId/bookings` accepts `{ "holdId": "...", "mockPaymentResult": "SUCCESS" }` and confirms the booking only when the hold is active, unexpired, owned by the signed-in customer, and backed by the unique seat claim. Use `"mockPaymentResult": "DECLINED"` to exercise the declined demo path.
+- Booking confirmation, hold conversion, and claim conversion run in a serializable transaction. The unique `(showId, seatId)` claim is retained as the final concurrency guard. Retrying a successful request returns the original booking instead of creating a duplicate.
+- `GET /api/bookings/me` returns the authenticated customer's booking history.
+- The response explicitly identifies payment as `MOCK`; no payment provider is contacted, no card data is collected, and no real money is charged.

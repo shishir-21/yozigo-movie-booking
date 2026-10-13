@@ -16,3 +16,5 @@
 
 /* Temporary seat hold states */
 .seat-tile{border:0;font:inherit;cursor:pointer;transition:transform .12s,outline-color .12s}.seat-tile.available:hover{transform:translateY(-2px);outline:2px solid #ffffff99}.seat-tile.held{background:#f5bd64;color:#211607;text-decoration:none}.seat-tile.unavailable{cursor:not-allowed}.seat-tile:disabled{cursor:not-allowed;opacity:.78}.hold-status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:12px;border:1px solid #f5bd6440;background:#f5bd640c;color:#f5d5a3;font-size:11px}.hold-status button{border:1px solid #ffffff30;background:transparent;color:#f6f3ee;padding:7px 10px;border-radius:3px;font:inherit;cursor:pointer}.hold-error{margin:12px 0;color:#ffb5b5;font-size:11px}
+
+.mock-checkout{width:100%;margin-top:14px;border:0;border-radius:4px;padding:13px 16px;background:var(--accent);color:#14180d;font-size:12px;font-weight:700;cursor:pointer}.mock-checkout:disabled{opacity:.55;cursor:not-allowed}.booking-success{padding:12px;border:1px solid #d5fd7144;background:#d5fd710d;color:#d5fd71;font-size:12px;line-height:1.6}
