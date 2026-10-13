@@ -76,7 +76,7 @@ holdsRouter.post('/:showId/holds', async (request: Request, response: Response, 
           const existingHold = await tx.seatHold.findFirst({
             where: { showId: show.id, seatId: seat.id, userId, status: 'ACTIVE', expiresAt: { gt: now } },
             orderBy: { createdAt: 'desc' },
-            select: { id: true, expiresAt: true },
+            select: { id: true, showId: true, seatId: true, expiresAt: true, status: true },
           });
           if (existingHold) return existingHold;
         }
