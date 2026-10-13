@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { filterMovies, type MovieSort } from './movie-catalogue';
 import { ApiError, getCurrentUser, login, register, type AuthUser } from './auth-client';
-import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-client';
+import { formatPrice, formatShowDate, getMovies, getMovieShows, type Movie, type MovieShow } from './movie-client';
 import { getShowSeats, type ShowSeat } from './seat-client';
 import { createSeatHold, releaseSeatHold, type SeatHold } from './hold-client';
 import { confirmBooking } from './booking-client';
@@ -25,6 +25,11 @@ export default function App() {
   const [movieLanguage, setMovieLanguage] = useState('all');
   const [movieSort, setMovieSort] = useState<MovieSort>('featured');
   const [movieReload, setMovieReload] = useState(0);
+  const [showtimeMovieId, setShowtimeMovieId] = useState<string | null>(null);
+  const [showtimeOptions, setShowtimeOptions] = useState<MovieShow[]>([]);
+  const [showtimesLoading, setShowtimesLoading] = useState(false);
+  const [showtimesError, setShowtimesError] = useState<string | null>(null);
+  const [showtimesReload, setShowtimesReload] = useState(0);
   const [token, setToken] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [name, setName] = useState('');
@@ -109,6 +114,18 @@ export default function App() {
 
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!showtimeMovieId) { setShowtimeOptions([]); setShowtimesError(null); return; }
+    let active = true;
+    setShowtimesLoading(true);
+    setShowtimesError(null);
+    getMovieShows(showtimeMovieId)
+      .then(({ shows }) => { if (active) setShowtimeOptions(shows); })
+      .catch((error: unknown) => { if (active) setShowtimesError(error instanceof Error ? error.message : 'Unable to load showtimes.'); })
+      .finally(() => { if (active) setShowtimesLoading(false); });
+    return () => { active = false; };
+  }, [showtimeMovieId, showtimesReload]);
 
   useEffect(() => {
     if (!selectedShowId) return;
@@ -231,8 +248,8 @@ export default function App() {
           <div className="movie-grid">{visibleMovies.map((movie, index) => <article className="movie-card" key={movie.id}>
             <div className="poster-wrap">{movie.posterUrl ? <img src={movie.posterUrl} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-label="Poster unavailable">Y.</div>}<span className="movie-tag">{movie.nextShow ? 'NOW SHOWING' : 'COMING SOON'}</span><span className="poster-index">{String(index + 1).padStart(2, '0')}</span></div>
             <div className="movie-info"><div className="movie-title-row"><h3>{movie.title}</h3><span className="rating">{movie.rating}</span></div><p className="genre">{movie.description || 'Discover this film at Yozigo.'}</p><div className="movie-details"><span>{movie.language}</span><span className="detail-dot" /><span>{Math.floor(movie.durationMin / 60)}h {String(movie.durationMin % 60).padStart(2, '0')}m</span></div>
-              {movie.nextShow && <><div className="next-show"><span>{formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div><button type="button" className="seat-map-button" onClick={() => setSelectedShowId(movie.nextShow!.id)}>View seats <span>↗</span></button></>}
-              <button type="button" className="book-button" disabled aria-label={movie.nextShow ? `Booking for ${movie.title} will be available soon` : `${movie.title} has no upcoming shows`}>{movie.nextShow ? 'Booking opens soon' : 'No upcoming shows'} <span>↗</span></button></div>
+              {movie.nextShow && <div className="next-show"><span>Next: {formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div>}
+              <button type="button" className="seat-map-button" disabled={!movie.nextShow} onClick={() => { setShowtimeMovieId(movie.id); setShowtimesError(null); }}>Choose showtime <span>↗</span></button></div>
           </article>)}</div>
         )}
       </section>
@@ -241,6 +258,18 @@ export default function App() {
 
       {bookingHistoryOpen && token && <BookingHistory token={token} onClose={() => setBookingHistoryOpen(false)} />}
       {adminManagementOpen && token && user?.role === 'ADMIN' && <AdminManagement token={token} onClose={() => setAdminManagementOpen(false)} />}
+
+      {showtimeMovieId && (
+        <div className="auth-backdrop showtime-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowtimeMovieId(null); }}>
+          <section className="showtime-dialog" role="dialog" aria-modal="true" aria-labelledby="showtime-dialog-title">
+            <button className="auth-close" type="button" aria-label="Close showtime picker" onClick={() => setShowtimeMovieId(null)}>×</button>
+            <span className="section-kicker">PICK YOUR SCREENING</span>
+            <h2 id="showtime-dialog-title">Choose a showtime<span>.</span></h2>
+            <p className="auth-intro">Select a date and time to open the seat map. Prices are shown per ticket.</p>
+            {showtimesLoading ? <p className="catalogue-state" role="status">Loading upcoming showtimes…</p> : showtimesError ? <div className="catalogue-state catalogue-error" role="alert"><p>{showtimesError}</p><button type="button" onClick={() => setShowtimesReload((value) => value + 1)}>Try again</button></div> : showtimeOptions.length === 0 ? <p className="catalogue-state">There are no upcoming showtimes for this movie.</p> : <div className="showtime-options">{showtimeOptions.map((show) => <button key={show.id} type="button" className="showtime-option" onClick={() => { setShowtimeMovieId(null); setActiveHold(null); setBookingMessage(null); setSelectedShowId(show.id); }}><span>{formatShowDate(show.startsAt)}</span><strong>{formatPrice(show.pricePaise)}</strong><span className="showtime-cta">Choose seats ↗</span></button>)}</div>}
+          </section>
+        </div>
+      )}
 
       {selectedShowId && (
         <div className="auth-backdrop seat-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedShowId(null); }}>

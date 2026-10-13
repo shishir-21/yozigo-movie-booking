@@ -270,6 +270,11 @@ docker compose -f docker-compose.full.yml down
 Add `-v` only if you intentionally want to delete the full-stack demo database volume. To configure local demo values, set `POSTGRES_PASSWORD`, `JWT_SECRET`, and `WEB_ORIGIN` in your shell before starting Compose. The defaults in this file are for local use only. Never deploy with the example JWT secret or demo database password; use unique secrets, HTTPS, a managed database, and a production migration workflow. Checkout continues to use mock payment only.
 
 
+## Movie showtime selection
+
+Each movie card shows the next upcoming screening and offers **Choose showtime**. The picker loads all upcoming screenings for that movie, showing the local date/time and ticket price. Choose a screening to open its seat map. The API excludes past shows and returns upcoming showtimes in chronological order. Loading, empty, and retryable error states are shown in the picker.
+
+
 ## Movie catalogue search and filters
 
 The public catalogue supports case-insensitive title search, filtering by the languages present in the loaded catalogue, and sorting by featured order, title (A–Z), or next showtime. Search and language filters can be combined. If no films match, use **Clear filters** to return to the full catalogue. These controls work on the loaded catalogue and do not add API requests.
