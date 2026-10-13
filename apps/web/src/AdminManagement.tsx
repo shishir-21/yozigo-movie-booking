@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from './auth-client';
+import AdminShowReport from './AdminShowReport';
 import {
   createAdminMovie, createAdminShow, deleteAdminMovie, deleteAdminShow,
   getAdminMovies, getAdminShows, updateAdminMovie, updateAdminShow,
@@ -34,6 +35,7 @@ export default function AdminManagement({ token, onClose }: { token: string; onC
   const [success, setSuccess] = useState<string | null>(null);
   const [editingMovie, setEditingMovie] = useState<string | null>(null);
   const [editingShow, setEditingShow] = useState<string | null>(null);
+  const [reportShow, setReportShow] = useState<AdminShow | null>(null);
   const [movieDraft, setMovieDraft] = useState<MovieDraft>(emptyMovie);
   const [showDraft, setShowDraft] = useState<ShowDraft>(emptyShow);
 
@@ -144,10 +146,11 @@ export default function AdminManagement({ token, onClose }: { token: string; onC
             <div className="admin-form-actions"><button className="auth-submit" disabled={busy || movies.length === 0} type="submit">{busy ? 'Saving…' : editingShow ? 'Save show' : 'Create show'}</button>{editingShow && <button type="button" className="admin-secondary" disabled={busy} onClick={() => { setEditingShow(null); setShowDraft(emptyShow); }}>Cancel edit</button>}</div>
             <p className="field-hint">Screenings require a 15-minute turnaround buffer. Conflicts are checked by the API.</p>
           </form>
-          <div className="admin-record-list"><h3>Scheduled shows</h3>{shows.length === 0 ? <p className="catalogue-state">No shows scheduled yet.</p> : shows.map((show) => <article className="admin-record" key={show.id}><div><strong>{show.movie.title}</strong><p>{formatDate(show.startsAt)} · {formatRupees(show.pricePaise)} · {show.movie.durationMin} min</p></div><div className="admin-record-actions"><button type="button" disabled={busy} onClick={() => startShowEdit(show)}>Edit</button><button type="button" className="danger" disabled={busy} onClick={() => void removeShow(show)}>Delete</button></div></article>)}</div>
+          <div className="admin-record-list"><h3>Scheduled shows</h3>{shows.length === 0 ? <p className="catalogue-state">No shows scheduled yet.</p> : shows.map((show) => <article className="admin-record" key={show.id}><div><strong>{show.movie.title}</strong><p>{formatDate(show.startsAt)} · {formatRupees(show.pricePaise)} · {show.movie.durationMin} min</p></div><div className="admin-record-actions"><button type="button" disabled={busy} onClick={() => setReportShow(show)}>Report</button><button type="button" disabled={busy} onClick={() => startShowEdit(show)}>Edit</button><button type="button" className="danger" disabled={busy} onClick={() => void removeShow(show)}>Delete</button></div></article>)}</div>
         </>}
       </>}
       <button type="button" className="admin-refresh" disabled={loading || busy} onClick={() => void reload()}>Refresh catalogue</button>
     </section>
+    {reportShow && <AdminShowReport token={token} showId={reportShow.id} onClose={() => setReportShow(null)} />}
   </div>;
 }
