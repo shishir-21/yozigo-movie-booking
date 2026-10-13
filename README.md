@@ -33,7 +33,8 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically
 - [x] Bonus Flow 9: admin show reports, occupancy, collection totals, booking list, and seat map
 - [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
-- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export\n- [ ] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
+- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export
+- [x] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
