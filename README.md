@@ -30,7 +30,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Customer-facing booking history page with loading, empty, and error states
 - [x] Admin movie/show management API and overlap validation
 - [x] Admin movie/show management frontend
-- [ ] Bonus Flows 8–10
+- [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically\n- [ ] Bonus Flows 9–10
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
@@ -173,3 +173,12 @@ Admin accounts must be provisioned through trusted database/seed tooling; never 
 ## Admin management frontend
 
 Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the navigation. The management dialog uses the protected `/api/admin/movies` and `/api/admin/shows` endpoints to list, create, edit, and delete catalogue entries. The UI displays API validation and schedule conflict messages; authorization and the 15-minute schedule turnaround rules remain enforced by the backend. Provision admin accounts only through trusted database/seed tooling.
+
+
+## Bonus Flow 8: booking cancellation
+
+- `POST /api/bookings/:bookingId/cancel` requires a valid bearer JWT and only cancels a confirmed booking owned by the signed-in customer.
+- Cancellation is rejected when the show starts in two hours or less, including past shows.
+- Booking status changes to `CANCELLED` and its booked seat claims are released in the same serializable database transaction, making those seats available again.
+- The endpoint returns `404 BOOKING_NOT_FOUND` for missing bookings and bookings owned by another customer; cancellation cutoff and non-confirmed booking attempts return `409`.
+- The My Bookings page includes a cancel action for confirmed bookings. The backend is authoritative for the two-hour cutoff.
