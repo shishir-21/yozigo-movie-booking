@@ -18,7 +18,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 
 - [x] Initial monorepo, React page shell, API health endpoint
 - [x] Initial Prisma data model and idempotent 80-seat seed
-- [x] Customer registration and login API with bcrypt hashes and JWTs
+- [x] Customer registration/login, bcrypt password hashing, JWT issuance and validation
 - [x] Automated auth validation, duplicate-email, and credential tests
 - [ ] Frontend sign-up/login and protected API authorization
 - [ ] Movie/show browsing backed by PostgreSQL
@@ -79,6 +79,10 @@ Successful registration returns HTTP `201` with a safe user object and a signed 
 ```
 
 Successful login returns HTTP `200` with a safe user object and JWT. Incorrect email/password combinations return the same `401 INVALID_CREDENTIALS` response. Invalid request bodies return `400 VALIDATION_ERROR`; duplicate email addresses return `409 EMAIL_ALREADY_EXISTS`.
+
+### Get the current user
+
+`GET /api/auth/me` requires an `Authorization: Bearer <token>` header. The API verifies the JWT signature and expiry, reloads the user from the database, and returns only public user fields. Missing tokens return `401 UNAUTHORIZED`; invalid or expired tokens return `401 INVALID_TOKEN`.
 
 Configure `JWT_SECRET` as a strong secret of at least 32 characters and set `JWT_EXPIRES_IN` in `.env`. Never commit `.env` or real credentials.
 
