@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './auth-client';
-import { createAdminMovie, deleteAdminShow, getAdminMovies, getAdminShows, updateAdminShow } from './admin-client';
+import { createAdminMovie, deleteAdminShow, getAdminMovies, getAdminShowReport, getAdminShows, updateAdminShow } from './admin-client';
 
 describe('admin client', () => {
   beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
@@ -25,6 +25,15 @@ describe('admin client', () => {
     expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/admin/shows/s%2F1', expect.objectContaining({ method: 'PATCH' }));
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
     await expect(deleteAdminShow('admin-token', 's/1')).resolves.toBeNull();
+  });
+
+  it('loads show report metrics and booking details with the admin token', async () => {
+    const payload = { report: { show: { id: 'show-1', movieTitle: 'Demo', startsAt: '2026-10-15T18:00:00.000Z', pricePaise: 25000, durationMin: 120 }, capacity: 80, seatsBooked: 2, percentageFull: 2.5, moneyCollectedPaise: 50000, seats: [{ id: 'seat-1', row: 'A', number: 1, status: 'BOOKED' }], bookings: [] } };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));
+    await expect(getAdminShowReport('admin-token', 'show/1')).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/admin/shows/show%2F1/report', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
+    }));
   });
 
   it('surfaces forbidden and network errors', async () => {
