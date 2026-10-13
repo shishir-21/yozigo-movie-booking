@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from './auth-client';
 import AdminShowReport from './AdminShowReport';
+import AdminAnalytics from './AdminAnalytics';
 import {
   createAdminMovie, createAdminShow, deleteAdminMovie, deleteAdminShow,
   getAdminMovies, getAdminShows, updateAdminMovie, updateAdminShow,
   type AdminMovie, type AdminShow, type MovieRating,
 } from './admin-client';
 
-type Tab = 'movies' | 'shows';
+type Tab = 'movies' | 'shows' | 'analytics';
 type MovieDraft = { title: string; posterUrl: string; language: string; durationMin: string; rating: MovieRating; description: string };
 type ShowDraft = { movieId: string; startsAt: string; priceRupees: string };
 const emptyMovie: MovieDraft = { title: '', posterUrl: '', language: 'English', durationMin: '120', rating: 'UA', description: '' };
@@ -117,11 +118,12 @@ export default function AdminManagement({ token, onClose }: { token: string; onC
       <div className="admin-tabs" role="tablist" aria-label="Management sections">
         <button type="button" role="tab" aria-selected={tab === 'movies'} className={tab === 'movies' ? 'selected' : ''} onClick={() => { setTab('movies'); setError(null); }}>Movies ({movies.length})</button>
         <button type="button" role="tab" aria-selected={tab === 'shows'} className={tab === 'shows' ? 'selected' : ''} onClick={() => { setTab('shows'); setError(null); }}>Shows ({shows.length})</button>
+        <button type="button" role="tab" aria-selected={tab === 'analytics'} className={tab === 'analytics' ? 'selected' : ''} onClick={() => { setTab('analytics'); setError(null); }}>Analytics</button>
       </div>
       {error && <p className="admin-message error" role="alert">{error}{error.includes('session expired') && <span> Please sign in again.</span>}</p>}
       {success && <p className="admin-message success" role="status">{success}</p>}
       {loading ? <p className="catalogue-state" role="status">Loading admin data…</p> : <>
-        {tab === 'movies' ? <>
+        {tab === 'analytics' ? <AdminAnalytics token={token} /> : tab === 'movies' ? <>
           <form className="admin-form" onSubmit={submitMovie}>
             <h3>{editingMovie ? 'Edit movie' : 'Add a movie'}</h3>
             <div className="admin-form-grid">
