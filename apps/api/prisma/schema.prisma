@@ -40,7 +40,6 @@ model User {
   updatedAt    DateTime  @updatedAt
   holds        SeatHold[]
   bookings     Booking[]
-  seatClaims   SeatClaim[]
 }
 
 model Movie {
