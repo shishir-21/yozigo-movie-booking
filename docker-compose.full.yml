@@ -1,0 +1,73 @@
+# Full-stack local demo. This file is separate from docker-compose.yml,
+# which continues to provide the existing database-only development service.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yozigo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yozigo_local_demo_password}
+      POSTGRES_DB: yozigo
+    ports:
+      - "5438:5432"
+    volumes:
+      - yozigo_fullstack_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yozigo -d yozigo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  db-init:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://yozigo:${POSTGRES_PASSWORD:-yozigo_local_demo_password}@db:5432/yozigo?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "npx prisma db push --schema apps/api/prisma/schema.prisma && npm run db:seed -w @yozigo/api"]
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://yozigo:${POSTGRES_PASSWORD:-yozigo_local_demo_password}@db:5432/yozigo?schema=public
+      JWT_SECRET: ${JWT_SECRET:-local-only-change-this-secret-before-deployment-12345}
+      JWT_EXPIRES_IN: 1d
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  yozigo_fullstack_pgdata:
