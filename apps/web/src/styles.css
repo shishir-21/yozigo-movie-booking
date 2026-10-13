@@ -76,3 +76,37 @@
 .admin-record-actions button:disabled,.admin-refresh:disabled,.admin-secondary:disabled{opacity:.55;cursor:not-allowed}
 .admin-refresh{margin-top:18px;color:var(--accent);border-color:#d5fd7160}
 @media(max-width:600px){.admin-dialog{padding:28px 15px}.admin-dialog h2{font-size:27px}.admin-form{padding:13px}.admin-form-grid{grid-template-columns:1fr}.admin-form-grid label.wide{grid-column:auto}.admin-record{align-items:flex-start;flex-direction:column}.admin-record-actions{width:100%}.admin-record-actions button{flex:1}.admin-form-actions{align-items:stretch;flex-direction:column}.admin-form-actions .auth-submit{width:100%}}
+
+
+/* Admin show occupancy and booking report */
+.report-backdrop{z-index:40}
+.report-dialog{position:relative;width:min(900px,96vw);max-height:92vh;overflow:auto;padding:34px;background:#15171d;border:1px solid #ffffff20;border-radius:8px;box-shadow:0 24px 90px #000a}
+.report-dialog h2{font-size:32px;letter-spacing:-1.2px;font-weight:500;margin:12px 0}
+.report-dialog h2 span{color:var(--accent)}
+.report-movie-title{font-size:18px;font-weight:500;margin:22px 0 5px}
+.report-show-date{font-size:11px;color:#aaa9b0;margin:0 0 18px}
+.report-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.report-metrics article{display:grid;gap:9px;padding:16px;border:1px solid #ffffff1c;border-radius:4px;background:#0d0f14}
+.report-metrics article span{font-size:10px;color:#9c9ba3}
+.report-metrics article strong{font-size:20px;font-weight:500;color:var(--accent);overflow-wrap:anywhere}
+.report-section{margin-top:25px}
+.report-section>h3{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:15px;font-weight:500;margin:0 0 14px}
+.report-section>h3 span{font-size:10px;color:#9998a0;font-weight:400}
+.report-seat-legend{display:flex;gap:18px;margin-bottom:12px;color:#aaa9b0;font-size:10px}
+.report-seat-legend span{display:flex;align-items:center;gap:7px}
+.report-seat-dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+.report-seat-dot.available{background:#d5fd71}
+.report-seat-dot.booked{background:#747681}
+.report-seat-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;padding:16px;border:1px solid #ffffff14;background:#0d0f14;border-radius:4px}
+.report-seat{display:grid;place-items:center;min-height:32px;border-radius:4px;font-size:9px;font-weight:600}
+.report-seat.available{background:#d5fd71;color:#171b0e}
+.report-seat.booked{background:#747681;color:#fff}
+.report-bookings{display:grid;gap:9px}
+.report-booking{padding:14px;border:1px solid #ffffff17;background:#0d0f14;border-radius:4px}
+.report-booking-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.report-booking-heading>div{display:grid;gap:5px;min-width:0}
+.report-booking-heading strong{font-size:12px;font-weight:500}
+.report-booking-heading>div>span{font-size:10px;color:#aaa9b0;overflow-wrap:anywhere}
+.report-booking-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#d0cfd5;font-size:10px}
+.report-booking>p{margin:10px 0 0;color:#85858d;font-size:9px}
+@media(max-width:560px){.report-dialog{padding:28px 15px}.report-dialog h2{font-size:28px}.report-metrics{grid-template-columns:1fr}.report-metrics article{grid-template-columns:1fr auto;align-items:center}.report-metrics article strong{font-size:16px}.report-seat-grid{gap:4px;padding:8px}.report-seat{min-height:27px;font-size:8px}}
