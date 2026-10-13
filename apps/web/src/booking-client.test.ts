@@ -1,0 +1,31 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { confirmBooking, getMyBookings } from './booking-client';
+
+describe('booking client', () => {
+  beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('confirms a booking using the mock payment endpoint and bearer token', async () => {
+    const payload = { booking: { id: 'booking-1', showId: 'show-1', movieTitle: 'Demo', amountPaise: 25000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }] }, payment: { mode: 'MOCK' as const, status: 'SUCCEEDED' as const, message: 'Demo payment only. No real money was charged.' }, alreadyConfirmed: false };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+    await expect(confirmBooking('show/1', 'hold-1', 'token-123')).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/shows/show%2F1/bookings', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer token-123', 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ holdId: 'hold-1', mockPaymentResult: 'SUCCESS' }),
+    }));
+  });
+
+  it('loads customer booking history', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ bookings: [] }), { status: 200 }));
+    await expect(getMyBookings('token-123')).resolves.toEqual({ bookings: [] });
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bookings/me', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token-123' }) }));
+  });
+
+  it('surfaces conflicts and network errors', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'HOLD_EXPIRED', message: 'Hold expired.' } }), { status: 409 }));
+    await expect(confirmBooking('show-1', 'hold-1', 'token')).rejects.toMatchObject({ status: 409, code: 'HOLD_EXPIRED' });
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('network down'));
+    await expect(confirmBooking('show-1', 'hold-1', 'token')).rejects.toMatchObject({ status: 0, code: 'NETWORK_ERROR' });
+  });
+});
