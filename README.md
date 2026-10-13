@@ -27,6 +27,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Five-minute seat holds, release, expiry, and conflict-safe claim creation
 - [x] Mock payment and concurrency-safe booking confirmation API and frontend checkout
 - [x] Customer booking history API
+- [x] Customer-facing booking history page with loading, empty, and error states
 - [ ] Admin movie/show management and overlap validation
 - [ ] Bonus Flows 8–10
 
