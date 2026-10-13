@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: yozigo_dev_password
       POSTGRES_DB: yozigo
     ports:
-      - "5436:5432"
+      - "5437:5432"
     volumes:
       - yozigo_pgdata:/var/lib/postgresql/data
     healthcheck:
