@@ -19,3 +19,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Validate full-stack Compose configuration
+        run: docker compose -f docker-compose.full.yml config --quiet
+      - name: Build API and web container images
+        run: docker compose -f docker-compose.full.yml build api web

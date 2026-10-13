@@ -247,3 +247,24 @@ npm run smoke
 ```
 
 The readiness check intentionally fails when PostgreSQL is unavailable. Start the database first; for deployed environments, verify the configured database connection and deployment logs if readiness returns `503 DATABASE_UNAVAILABLE`. The smoke script does not create data or exercise authenticated booking flows.
+
+
+## Full-stack Docker demo
+
+The existing `docker-compose.yml` remains the database-only setup used by the standard local development workflow. To run the complete demo in isolated containers instead, use the separate Compose file:
+
+```powershell
+docker compose -f docker-compose.full.yml up --build
+```
+
+Then open `http://localhost:8080`. The web container serves the Vite build through Nginx and proxies `/api/*` requests to the API container, so the browser uses a same-origin API URL. The API is also exposed at `http://localhost:4000` for debugging. The full-stack database uses host port `5438` and a separate named volume, so it does not reuse the database-only stack's port or data volume.
+
+The full-stack demo waits for PostgreSQL health, runs Prisma `db push` and the idempotent demo seed, then starts the API and web containers. This automatic schema setup is intended for a disposable assignment/demo environment; use reviewed Prisma migrations and a deliberate deployment process for production data.
+
+To stop the demo:
+
+```powershell
+docker compose -f docker-compose.full.yml down
+```
+
+Add `-v` only if you intentionally want to delete the full-stack demo database volume. To configure local demo values, set `POSTGRES_PASSWORD`, `JWT_SECRET`, and `WEB_ORIGIN` in your shell before starting Compose. The defaults in this file are for local use only. Never deploy with the example JWT secret or demo database password; use unique secrets, HTTPS, a managed database, and a production migration workflow. Checkout continues to use mock payment only.
