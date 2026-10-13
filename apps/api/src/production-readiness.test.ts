@@ -9,10 +9,12 @@ vi.mock('./lib/prisma.js', () => ({
     seat: { findMany: vi.fn() },
     seatHold: { findMany: vi.fn() },
     bookingSeat: { findMany: vi.fn() },
+    $queryRaw: vi.fn(),
   },
 }));
 
 import { app } from './app.js';
+import { prisma } from './lib/prisma.js';
 import { resetRateLimitersForTests } from './middleware/security.js';
 
 describe('production readiness middleware', () => {
@@ -23,6 +25,26 @@ describe('production readiness middleware', () => {
     expect(response.status).toBe(200);
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
     expect(response.headers['x-request-id'].length).toBeGreaterThan(10);
+  });
+
+  it('reports database readiness when the database query succeeds', async () => {
+    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([]);
+    const response = await request(app).get('/api/health/ready');
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ status: 'ready', service: 'yozigo-api', database: 'ok' });
+    expect(response.headers['x-request-id']).toBeTruthy();
+  });
+
+  it('returns a safe 503 readiness response when the database query fails', async () => {
+    vi.mocked(prisma.$queryRaw).mockRejectedValueOnce(new Error('database credentials must not leak'));
+    const response = await request(app).get('/api/health/ready');
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({
+      status: 'not_ready',
+      error: { code: 'DATABASE_UNAVAILABLE', message: 'Database is not ready' },
+    });
+    expect(JSON.stringify(response.body)).not.toContain('credentials');
+    expect(response.body.error.requestId).toBe(response.headers['x-request-id']);
   });
 
   it('preserves a safe caller-supplied request ID', async () => {
