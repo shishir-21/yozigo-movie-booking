@@ -1,13 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, getCurrentUser, login, register, type AuthUser } from './auth-client';
+import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-client';
 
 const TOKEN_KEY = 'yozigo_access_token';
-
-const movies = [
-  { title: 'The Last Horizon', genre: 'Sci-Fi · Adventure', language: 'English', duration: '2h 08m', rating: 'UA', image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=900&q=85', tag: 'NOW SHOWING' },
-  { title: 'Midnight in Kyoto', genre: 'Drama · Romance', language: 'Japanese', duration: '1h 54m', rating: 'U/A', image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=85', tag: 'CRITICS’ PICK' },
-  { title: 'The Deep Signal', genre: 'Mystery · Thriller', language: 'English', duration: '2h 01m', rating: 'A', image: 'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=85', tag: 'NEW RELEASE' },
-];
 
 type AuthMode = 'login' | 'register';
 
@@ -17,6 +12,10 @@ function initials(name: string): string {
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [moviesLoading, setMoviesLoading] = useState(true);
+  const [moviesError, setMoviesError] = useState<string | null>(null);
+  const [movieReload, setMovieReload] = useState(0);
   const [token, setToken] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [name, setName] = useState('');
@@ -26,6 +25,24 @@ export default function App() {
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getMovies()
+      .then(({ movies: results }) => {
+        if (!active) return;
+        setMovies(results);
+        setMoviesError(null);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setMoviesError(error instanceof Error ? error.message : 'Unable to load movies. Please try again.');
+      })
+      .finally(() => {
+        if (active) setMoviesLoading(false);
+      });
+    return () => { active = false; };
+  }, [movieReload]);
 
   useEffect(() => {
     let active = true;
@@ -132,11 +149,21 @@ export default function App() {
         <div className="hero-meta"><span>01 / 03</span><span className="meta-line" /><span>THE CINEMA COLLECTION</span></div>
       </section>
       <section className="movies-section" id="movies">
-        <div className="section-heading"><div><span className="section-kicker">HANDPICKED FOR YOU</span><h2>Now showing<span>.</span></h2></div><button className="view-all" type="button" disabled>View all films <span>→</span></button></div>
-        <div className="movie-grid">{movies.map((movie, index) => <article className="movie-card" key={movie.title}>
-          <div className="poster-wrap"><img src={movie.image} alt={`${movie.title} poster`} /><span className="movie-tag">{movie.tag}</span><span className="poster-index">0{index + 1}</span></div>
-          <div className="movie-info"><div className="movie-title-row"><h3>{movie.title}</h3><span className="rating">{movie.rating}</span></div><p className="genre">{movie.genre}</p><div className="movie-details"><span>{movie.language}</span><span className="detail-dot" /><span>{movie.duration}</span></div><button type="button" className="book-button" disabled>Choose a show <span>↗</span></button></div>
-        </article>)}</div>
+        <div className="section-heading"><div><span className="section-kicker">HANDPICKED FOR YOU</span><h2>Now showing<span>.</span></h2></div><span className="catalogue-count">{moviesLoading ? 'Loading films…' : `${movies.length} films`}</span></div>
+        {moviesLoading ? (
+          <p className="catalogue-state" role="status">Loading movies from the cinema catalogue…</p>
+        ) : moviesError ? (
+          <div className="catalogue-state catalogue-error" role="alert"><p>{moviesError}</p><button type="button" onClick={() => { setMoviesLoading(true); setMovieReload((value) => value + 1); }}>Try again</button></div>
+        ) : movies.length === 0 ? (
+          <p className="catalogue-state">No movies are available right now. Please check back soon.</p>
+        ) : (
+          <div className="movie-grid">{movies.map((movie, index) => <article className="movie-card" key={movie.id}>
+            <div className="poster-wrap">{movie.posterUrl ? <img src={movie.posterUrl} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-label="Poster unavailable">Y.</div>}<span className="movie-tag">{movie.nextShow ? 'NOW SHOWING' : 'COMING SOON'}</span><span className="poster-index">{String(index + 1).padStart(2, '0')}</span></div>
+            <div className="movie-info"><div className="movie-title-row"><h3>{movie.title}</h3><span className="rating">{movie.rating}</span></div><p className="genre">{movie.description || 'Discover this film at Yozigo.'}</p><div className="movie-details"><span>{movie.language}</span><span className="detail-dot" /><span>{Math.floor(movie.durationMin / 60)}h {String(movie.durationMin % 60).padStart(2, '0')}m</span></div>
+              {movie.nextShow && <div className="next-show"><span>{formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div>}
+              <button type="button" className="book-button" disabled aria-label={movie.nextShow ? `Booking for ${movie.title} will be available soon` : `${movie.title} has no upcoming shows`}>{movie.nextShow ? 'Booking opens soon' : 'No upcoming shows'} <span>↗</span></button></div>
+          </article>)}</div>
+        )}
       </section>
       <section className="experience-strip" id="experiences"><span className="strip-icon">✳</span><div><p className="section-kicker">THE YOZIGO EXPERIENCE</p><h2>Make a night of it.</h2></div><p className="strip-copy">Less scrolling, more story. Your cinema plans, all in one place.</p></section>
       <footer id="about"><a className="brand" href="#top"><span className="brand-mark">y</span> yozigo<span className="brand-dot">.</span></a><span>Good stories bring us together.</span><span>© 2026 Yozigo · Internship project</span></footer>
