@@ -44,10 +44,6 @@ function createToken(user: PublicUser): string {
   );
 }
 
-function sendRouteError(error: unknown, next: NextFunction): void {
-  next(error);
-}
-
 authRouter.post('/register', async (request: Request, response: Response, next: NextFunction) => {
   const parsed = registerSchema.safeParse(request.body);
   if (!parsed.success) {
@@ -77,7 +73,7 @@ authRouter.post('/register', async (request: Request, response: Response, next: 
       response.status(409).json({ error: { code: 'EMAIL_ALREADY_EXISTS', message: 'An account with this email already exists.' } });
       return;
     }
-    sendRouteError(error, next);
+    next(error);
   }
 });
 
@@ -99,6 +95,43 @@ authRouter.post('/login', async (request: Request, response: Response, next: Nex
     const safeUser = publicUser(user);
     response.status(200).json({ user: safeUser, token: createToken(safeUser) });
   } catch (error) {
-    sendRouteError(error, next);
+    next(error);
+  }
+});
+
+authRouter.get('/me', async (request: Request, response: Response, next: NextFunction) => {
+  const authorization = request.get('authorization');
+  if (!authorization?.startsWith('Bearer ')) {
+    response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'A valid bearer token is required.' } });
+    return;
+  }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    next(new Error('JWT_SECRET must be configured with at least 32 characters'));
+    return;
+  }
+
+  let userId: string;
+  try {
+    const payload = jwt.verify(authorization.slice('Bearer '.length), secret);
+    if (typeof payload !== 'object' || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+      throw new Error('Token subject is missing');
+    }
+    userId = payload.sub;
+  } catch {
+    response.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'The access token is invalid or expired.' } });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      response.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'The access token is invalid or expired.' } });
+      return;
+    }
+    response.status(200).json({ user: publicUser(user) });
+  } catch (error) {
+    next(error);
   }
 });
