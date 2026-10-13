@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, getCurrentUser, login, register, type AuthUser } from './auth-client';
 import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-client';
+import { getShowSeats, type ShowSeat } from './seat-client';
 
 const TOKEN_KEY = 'yozigo_access_token';
 
@@ -25,6 +26,10 @@ export default function App() {
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
+  const [showSeats, setShowSeats] = useState<ShowSeat[]>([]);
+  const [seatsLoading, setSeatsLoading] = useState(false);
+  const [seatsError, setSeatsError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +78,18 @@ export default function App() {
 
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!selectedShowId) return;
+    let active = true;
+    setSeatsLoading(true);
+    setSeatsError(null);
+    getShowSeats(selectedShowId)
+      .then(({ seats }) => { if (active) setShowSeats(seats); })
+      .catch((error: unknown) => { if (active) setSeatsError(error instanceof Error ? error.message : 'Unable to load seat availability.'); })
+      .finally(() => { if (active) setSeatsLoading(false); });
+    return () => { active = false; };
+  }, [selectedShowId]);
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,13 +177,26 @@ export default function App() {
           <div className="movie-grid">{movies.map((movie, index) => <article className="movie-card" key={movie.id}>
             <div className="poster-wrap">{movie.posterUrl ? <img src={movie.posterUrl} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-label="Poster unavailable">Y.</div>}<span className="movie-tag">{movie.nextShow ? 'NOW SHOWING' : 'COMING SOON'}</span><span className="poster-index">{String(index + 1).padStart(2, '0')}</span></div>
             <div className="movie-info"><div className="movie-title-row"><h3>{movie.title}</h3><span className="rating">{movie.rating}</span></div><p className="genre">{movie.description || 'Discover this film at Yozigo.'}</p><div className="movie-details"><span>{movie.language}</span><span className="detail-dot" /><span>{Math.floor(movie.durationMin / 60)}h {String(movie.durationMin % 60).padStart(2, '0')}m</span></div>
-              {movie.nextShow && <div className="next-show"><span>{formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div>}
+              {movie.nextShow && <><div className="next-show"><span>{formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div><button type="button" className="seat-map-button" onClick={() => setSelectedShowId(movie.nextShow!.id)}>View seats <span>↗</span></button></>}
               <button type="button" className="book-button" disabled aria-label={movie.nextShow ? `Booking for ${movie.title} will be available soon` : `${movie.title} has no upcoming shows`}>{movie.nextShow ? 'Booking opens soon' : 'No upcoming shows'} <span>↗</span></button></div>
           </article>)}</div>
         )}
       </section>
       <section className="experience-strip" id="experiences"><span className="strip-icon">✳</span><div><p className="section-kicker">THE YOZIGO EXPERIENCE</p><h2>Make a night of it.</h2></div><p className="strip-copy">Less scrolling, more story. Your cinema plans, all in one place.</p></section>
       <footer id="about"><a className="brand" href="#top"><span className="brand-mark">y</span> yozigo<span className="brand-dot">.</span></a><span>Good stories bring us together.</span><span>© 2026 Yozigo · Internship project</span></footer>
+
+      {selectedShowId && (
+        <div className="auth-backdrop seat-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedShowId(null); }}>
+          <section className="seat-dialog" role="dialog" aria-modal="true" aria-labelledby="seat-dialog-title">
+            <button className="auth-close" type="button" aria-label="Close seat map" onClick={() => setSelectedShowId(null)}>×</button>
+            <span className="section-kicker">CHOOSE YOUR VIEW</span><h2 id="seat-dialog-title">Seat availability.</h2>
+            <p className="auth-intro">This map shows current availability for the selected show.</p><div className="seat-screen">SCREEN</div>
+            <div className="seat-legend"><span><i className="seat-key available" /> Available</span><span><i className="seat-key unavailable" /> Unavailable</span></div>
+            {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => <div key={seat.id} className={"seat-tile " + (seat.status === "AVAILABLE" ? "available" : "unavailable")} title={"Row " + seat.row + ", seat " + seat.number + ": " + seat.status.toLowerCase()} aria-label={"Row " + seat.row + ", seat " + seat.number + ", " + seat.status.toLowerCase()}>{seat.row}{seat.number}</div>)}</div>}
+            <p className="seat-footnote">Seat selection and temporary holds are coming in the next step.</p>
+          </section>
+        </div>
+      )}
 
       {authMode && (
         <div className="auth-backdrop" onMouseDown={(event) => {
