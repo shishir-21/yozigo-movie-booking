@@ -24,7 +24,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Frontend auth client tests for registration, API errors, token verification, and network failures
 - [x] Public movie catalogue and upcoming showtime APIs backed by PostgreSQL, with frontend loading/error states
 - [x] Show-specific seat map and availability API/UI
-- [ ] 5-minute seat holds and expiry
+- [x] Five-minute seat holds, release, expiry, and conflict-safe claim creation
 - [ ] Mock payment and concurrency-safe booking confirmation
 - [ ] Customer booking history
 - [ ] Admin movie/show management and overlap validation
@@ -130,3 +130,11 @@ GitHub Actions runs install, Prisma generation, type checks, tests, and builds o
 - Passwords are hashed with bcrypt; no plaintext passwords are stored.
 - Admin privileges must be assigned only by trusted seed/admin tooling.
 - Protected operations must validate authorization in the API.
+
+
+## Five-minute seat holds
+
+- `POST /api/shows/:showId/holds` requires a valid bearer JWT and JSON body `{ "seatId": "..." }. A successful response creates a five-minute hold.
+- `DELETE /api/shows/:showId/holds/:holdId` releases an active hold owned by the authenticated customer. A customer cannot release another customer's hold.
+- Expired `SeatClaim` records are removed during hold creation; the associated `SeatHold` is marked `EXPIRED`. A unique database constraint on `(showId, seatId)` plus a serializable transaction protects claim creation from competing requests. Conflicts return `409 SEAT_UNAVAILABLE`.
+- Payment and confirmed booking conversion remain out of scope for this step.
