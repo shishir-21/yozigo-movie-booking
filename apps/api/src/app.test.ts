@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 vi.mock('./lib/prisma.js', () => ({
-  prisma: { user: { findUnique: vi.fn(), create: vi.fn() } },
+  prisma: { user: { findUnique: vi.fn(), create: vi.fn() }, movie: { findMany: vi.fn(), findUnique: vi.fn() }, show: { findMany: vi.fn() } },
 }));
 
 import { prisma } from './lib/prisma.js';
@@ -152,5 +152,87 @@ describe('API foundation and authentication', () => {
       role: 'CUSTOMER',
     });
     expect(response.body.user).not.toHaveProperty('passwordHash');
+  });
+});
+
+
+describe('public movie and show browsing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns movie metadata and the next upcoming show from the database', async () => {
+    const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    vi.mocked(prisma.movie.findMany).mockResolvedValue([{
+      id: 'movie-1',
+      title: 'The Last Horizon',
+      posterUrl: 'https://example.com/poster.jpg',
+      language: 'English',
+      durationMin: 128,
+      rating: 'UA',
+      description: 'A space adventure',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      shows: [{ id: 'show-1', startsAt, pricePaise: 25000 }],
+    }] as never);
+
+    const response = await request(app).get('/api/movies');
+
+    expect(response.status).toBe(200);
+    expect(response.body.movies).toHaveLength(1);
+    expect(response.body.movies[0]).toMatchObject({
+      id: 'movie-1',
+      title: 'The Last Horizon',
+      language: 'English',
+      durationMin: 128,
+      rating: 'UA',
+      nextShow: { id: 'show-1', pricePaise: 25000 },
+    });
+    expect(response.body.movies[0].nextShow.startsAt).toBe(startsAt.toISOString());
+    expect(prisma.movie.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      include: { shows: expect.objectContaining({
+        where: { startsAt: { gte: expect.any(Date) } },
+        orderBy: { startsAt: 'asc' },
+        take: 1,
+      }) },
+    }));
+  });
+
+  it('returns an empty movie list when the catalogue is empty', async () => {
+    vi.mocked(prisma.movie.findMany).mockResolvedValue([]);
+
+    const response = await request(app).get('/api/movies');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ movies: [] });
+  });
+
+  it('returns ordered upcoming shows for an existing movie', async () => {
+    const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    vi.mocked(prisma.movie.findUnique).mockResolvedValue({ id: 'movie-1' } as never);
+    vi.mocked(prisma.show.findMany).mockResolvedValue([
+      { id: 'show-1', startsAt, pricePaise: 25000 },
+    ] as never);
+
+    const response = await request(app).get('/api/movies/movie-1/shows');
+
+    expect(response.status).toBe(200);
+    expect(response.body.shows).toHaveLength(1);
+    expect(response.body.shows[0]).toMatchObject({ id: 'show-1', pricePaise: 25000 });
+    expect(response.body.shows[0].startsAt).toBe(startsAt.toISOString());
+    expect(prisma.show.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { movieId: 'movie-1', startsAt: { gte: expect.any(Date) } },
+      orderBy: { startsAt: 'asc' },
+    }));
+  });
+
+  it('returns 404 when requesting shows for a movie that does not exist', async () => {
+    vi.mocked(prisma.movie.findUnique).mockResolvedValue(null);
+
+    const response = await request(app).get('/api/movies/missing-movie/shows');
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('MOVIE_NOT_FOUND');
+    expect(prisma.show.findMany).not.toHaveBeenCalled();
   });
 });
