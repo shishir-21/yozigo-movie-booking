@@ -22,14 +22,14 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Automated auth validation, duplicate-email, and credential tests
 - [x] Frontend sign-up/login and session restoration through the protected current-user API
 - [x] Frontend auth client tests for registration, API errors, token verification, and network failures
-- [ ] Movie/show browsing backed by PostgreSQL
+- [x] Public movie catalogue and upcoming showtime APIs backed by PostgreSQL, with frontend loading/error states
 - [ ] Seat map, 5-minute seat holds and expiry
 - [ ] Mock payment and concurrency-safe booking confirmation
 - [ ] Customer booking history
 - [ ] Admin movie/show management and overlap validation
 - [ ] Bonus Flows 8–10
 
-**Current limitation:** the landing page currently uses demonstration movie data, and booking controls are intentionally disabled until the movie/show and booking APIs are implemented. Authentication is available through the Sign in and Create account controls; the complete booking flow is not done yet.
+**Current limitation:** the movie catalogue is read from PostgreSQL and the seed script creates fictional demo movies and upcoming shows. Booking controls remain disabled until seat holds, payments, and booking confirmation are implemented. Authentication is available through the Sign in and Create account controls; the complete booking flow is not done yet.
 
 ## Requirements
 
@@ -49,6 +49,13 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 8. Start API and frontend: `npm run dev`.
 
 The API health check is at `http://localhost:4000/api/health`; the web app is at `http://localhost:5173`. The web app defaults to `http://localhost:4000` for API calls. To change it, copy `apps/web/.env.example` to `apps/web/.env.local`, update `VITE_API_BASE_URL`, and restart Vite.
+
+## Movie and show browsing API
+
+- `GET /api/movies` returns the public movie catalogue and each movie's next upcoming show, if one exists.
+- `GET /api/movies/:movieId/shows` returns upcoming shows for one movie, ordered by start time. Prices are expressed in paise and start times are ISO timestamps.
+- Both endpoints are public. Past shows are excluded.
+- `npm run db:seed` preserves the 80-seat seed and creates/updates fictional demo movies with upcoming shows. It is safe to rerun without duplicating seats, catalogue entries, or shows for the same seeded dates.
 
 ## Authentication API
 
