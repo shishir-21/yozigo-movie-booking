@@ -67,7 +67,7 @@ The API health check is at `http://localhost:4000/api/health`; the web app is at
 - `GET /api/shows/:showId/seats` returns the fixed cinema seat layout and each seat's availability for the requested show.
 - Seats are unavailable when they have an active, unexpired hold for that show or belong to a confirmed booking for that show. Expired holds are ignored.
 - Unknown shows return `404 SHOW_NOT_FOUND`; malformed IDs return `400 VALIDATION_ERROR`.
-- The seat map is read-only in this stage. Creating a temporary hold and safely handling concurrent requests are the next implementation step.
+- Seat availability is read from PostgreSQL and reflects active, unexpired holds plus confirmed bookings. Customers can create and release five-minute holds; unique seat claims and serializable transactions prevent competing requests from claiming the same seat.
 
 ## Authentication API
 
@@ -116,9 +116,9 @@ Configure `JWT_SECRET` as a strong secret of at least 32 characters and set `JWT
 - `Booking`: owner, show, amount, status, and optional converted hold.
 - `BookingSeat`: seat assignments attached to a booking.
 
-### Booking concurrency design (to be completed with Flow 4/5)
+### Booking concurrency design
 
-Correctness must be enforced by PostgreSQL transactions and constraints, not only by the UI. A key schema detail still needed is a database-enforced single active claim per `(showId, seatId)` across both current holds and confirmed bookings. PostgreSQL cannot express a time-dependent partial uniqueness rule using `expiresAt > now()`; the implementation will therefore use an explicit claim/seat-allocation model or transactional row locking plus durable uniqueness. The double-booking test must exercise concurrent database transactions against PostgreSQL.
+Correctness is enforced by PostgreSQL constraints and serializable transactions, not only by the UI. A durable `SeatClaim` enforces a single claim per `(showId, seatId)` across active holds and confirmed bookings. Expired claims are cleaned up during hold creation, and booking confirmation converts the existing claim inside the same transaction. The unique constraint remains the final guard against double booking.
 
 ## Verification
 
@@ -141,7 +141,7 @@ GitHub Actions runs install, Prisma generation, type checks, tests, and builds o
 - `POST /api/shows/:showId/holds` requires a valid bearer JWT and JSON body `{ "seatId": "..." }. A successful response creates a five-minute hold.
 - `DELETE /api/shows/:showId/holds/:holdId` releases an active hold owned by the authenticated customer. A customer cannot release another customer's hold.
 - Expired `SeatClaim` records are removed during hold creation; the associated `SeatHold` is marked `EXPIRED`. A unique database constraint on `(showId, seatId)` plus a serializable transaction protects claim creation from competing requests. Conflicts return `409 SEAT_UNAVAILABLE`.
-- Payment and confirmed booking conversion remain out of scope for this step.
+- Checkout converts an active hold into a confirmed booking through the serializable booking transaction described below.
 
 
 ## Seat holds, mock checkout, and bookings
