@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from './auth-client';
-import { getMyBookings, type ConfirmedBooking } from './booking-client';
+import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-client';
 
 interface BookingHistoryProps {
   token: string;
@@ -33,6 +33,9 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +61,22 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
     return () => { active = false; };
   }, [token, reloadKey]);
 
+  async function handleCancel(booking: ConfirmedBooking) {
+    if (!window.confirm(`Cancel booking ${bookingReference(booking.id)}? This is only allowed more than two hours before the show.`)) return;
+    setCancellingId(booking.id);
+    setActionMessage(null);
+    setActionError(null);
+    try {
+      const result = await cancelBooking(booking.id, token);
+      setActionMessage(result.message);
+      setReloadKey((value) => value + 1);
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : 'Unable to cancel this booking.');
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
   return (
     <div className="auth-backdrop booking-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -67,6 +86,9 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
         <span className="section-kicker">YOUR YOZIGO ACCOUNT</span>
         <h2 id="booking-history-title">My bookings<span>.</span></h2>
         <p className="auth-intro">Your confirmed cinema plans, all in one place.</p>
+
+        {actionMessage && <p className="booking-action-message" role="status">{actionMessage}</p>}
+        {actionError && <p className="catalogue-state catalogue-error" role="alert">{actionError}</p>}
 
         {loading ? (
           <p className="catalogue-state" role="status">Loading your bookings…</p>
@@ -99,6 +121,16 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                   <span><strong>Total</strong>{formatAmount(booking.amountPaise)}</span>
                 </div>
                 <p className="booking-show-id">Show reference: {booking.showId.slice(0, 8).toUpperCase()}</p>
+                {booking.status === 'CONFIRMED' && (
+                  <button
+                    type="button"
+                    className="booking-cancel-button"
+                    onClick={() => void handleCancel(booking)}
+                    disabled={cancellingId !== null}
+                  >
+                    {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
+                  </button>
+                )}
               </article>
             ))}
           </div>
