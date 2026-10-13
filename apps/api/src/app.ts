@@ -6,6 +6,7 @@ import { authRouter } from './routes/auth.js';
 import { moviesRouter } from './routes/movies.js';
 import { seatsRouter } from './routes/seats.js';
 import { holdsRouter } from './routes/holds.js';
+import { bookingsRouter } from './routes/bookings.js';
 
 export const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/movies', moviesRouter);
 app.use('/api/shows', seatsRouter);
 app.use('/api/shows', holdsRouter);
+app.use('/api', bookingsRouter);
 
 app.use((_request, response) => {
   response.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
