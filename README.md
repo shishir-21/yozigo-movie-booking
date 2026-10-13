@@ -190,3 +190,11 @@ Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the
 - The report includes show metadata, seat capacity, confirmed seats booked, percentage full, money collected in paise, the seat map, and booking/customer details.
 - Only confirmed bookings count toward occupancy and collected-money metrics. Cancelled bookings remain visible in the booking list but their released seats display as available and their amounts are excluded from collection totals.
 - The admin management Shows tab provides a Report action with loading, retry/error, refresh, occupancy metrics, seat map, and booking list.
+
+
+## Bonus Flow 10: live seat availability
+
+- `GET /api/shows/:showId/seat-events` opens a public Server-Sent Events (SSE) stream scoped to one show. Events contain only a seat-map invalidation signal, never customer, authentication, or payment data.
+- The frontend opens an `EventSource` while a show’s seat dialog is open. On each invalidation, it reloads the authoritative `GET /api/shows/:showId/seats` response and closes the stream when the dialog closes or the show changes. Browser EventSource reconnects automatically after a network interruption.
+- Hold creation/release, booking confirmation, and cancellation publish an immediate show-scoped invalidation. A five-second SSE sync signal also makes seat holds appear available shortly after expiry even if no other mutation occurs.
+- SSE is used because this feature sends updates from server to browser only; it does not require a bidirectional WebSocket. PostgreSQL transactions and unique seat claims remain the source of truth for booking concurrency; SSE only prompts clients to refresh availability.
