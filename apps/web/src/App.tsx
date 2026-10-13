@@ -116,6 +116,19 @@ export default function App() {
     return () => { active = false; };
   }, [selectedShowId, seatReload]);
 
+  useEffect(() => {
+    if (!selectedShowId) return;
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
+    const source = new EventSource(`${apiBase}/api/shows/${encodeURIComponent(selectedShowId)}/seat-events`);
+    source.addEventListener('seat-map-invalidated', () => {
+      setSeatReload((value) => value + 1);
+    });
+    source.onerror = () => {
+      // EventSource retries automatically; the seat map remains usable during reconnects.
+    };
+    return () => source.close();
+  }, [selectedShowId]);
+
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
