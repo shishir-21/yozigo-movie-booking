@@ -28,10 +28,11 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Mock payment and concurrency-safe booking confirmation API and frontend checkout
 - [x] Customer booking history API
 - [x] Customer-facing booking history page with loading, empty, and error states
-- [ ] Admin movie/show management and overlap validation
+- [x] Admin movie/show management API and overlap validation
+- [x] Admin movie/show management frontend
 - [ ] Bonus Flows 8–10
 
-**Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration, refunds, and admin management are not implemented yet.
+**Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
 ## Requirements
 
@@ -167,3 +168,8 @@ Admin management endpoints require a bearer JWT belonging to a database user who
 The single-screen schedule uses each movie's duration plus a 15-minute turnaround buffer. The API rejects overlapping screenings, including overlaps caused by updates. Show time/movie changes are rejected when confirmed bookings or seat claims already exist. The API returns `403 FORBIDDEN` to authenticated non-admin users and `409 RESOURCE_CONFLICT` for schedule or resource conflicts.
 
 Admin accounts must be provisioned through trusted database/seed tooling; never expose an endpoint that allows a customer to grant themselves the ADMIN role.
+
+
+## Admin management frontend
+
+Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the navigation. The management dialog uses the protected `/api/admin/movies` and `/api/admin/shows` endpoints to list, create, edit, and delete catalogue entries. The UI displays API validation and schedule conflict messages; authorization and the 15-minute schedule turnaround rules remain enforced by the backend. Provision admin accounts only through trusted database/seed tooling.
