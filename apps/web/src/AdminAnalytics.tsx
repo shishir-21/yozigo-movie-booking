@@ -10,7 +10,7 @@ function dateTime(value: string): string {
 }
 function csvCell(value: string | number): string {
   const text = String(value);
-  const safe = /^[=+@\\-\\t\\r]/.test(text) ? `'${text}` : text;
+  const safe = /^[=+@-]/.test(text) || text.startsWith('\\t') || text.startsWith('\\r') ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
 }
 function exportCsv(analytics: AdminAnalytics) {
