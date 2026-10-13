@@ -182,3 +182,11 @@ Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the
 - Booking status changes to `CANCELLED` and its booked seat claims are released in the same serializable database transaction, making those seats available again.
 - The endpoint returns `404 BOOKING_NOT_FOUND` for missing bookings and bookings owned by another customer; cancellation cutoff and non-confirmed booking attempts return `409`.
 - The My Bookings page includes a cancel action for confirmed bookings. The backend is authoritative for the two-hour cutoff.
+
+
+## Bonus Flow 9: admin show report
+
+- `GET /api/admin/shows/:showId/report` requires an administrator bearer token.
+- The report includes show metadata, seat capacity, confirmed seats booked, percentage full, money collected in paise, the seat map, and booking/customer details.
+- Only confirmed bookings count toward occupancy and collected-money metrics. Cancelled bookings remain visible in the booking list but their released seats display as available and their amounts are excluded from collection totals.
+- The admin management Shows tab provides a Report action with loading, retry/error, refresh, occupancy metrics, seat map, and booking list.
