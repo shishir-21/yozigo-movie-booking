@@ -1,0 +1,24 @@
+{
+  "name": "yozigo-movie-booking",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm run dev -w @yozigo/api\" \"npm run dev -w @yozigo/web\"",
+    "build": "npm run build -w @yozigo/api && npm run build -w @yozigo/web",
+    "test": "npm run test -w @yozigo/api",
+    "db:generate": "npm run db:generate -w @yozigo/api",
+    "db:migrate": "npm run db:migrate -w @yozigo/api",
+    "db:seed": "npm run db:seed -w @yozigo/api",
+    "lint": "npm run lint -w @yozigo/api && npm run lint -w @yozigo/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
