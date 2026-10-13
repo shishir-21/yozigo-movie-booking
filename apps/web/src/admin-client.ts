@@ -18,6 +18,24 @@ export interface AdminShow {
   pricePaise: number;
   movie: { title: string; durationMin: number };
 }
+
+export interface AdminShowReport {
+  show: { id: string; movieTitle: string; startsAt: string; pricePaise: number; durationMin: number };
+  capacity: number;
+  seatsBooked: number;
+  percentageFull: number;
+  moneyCollectedPaise: number;
+  seats: Array<{ id: string; row: string; number: number; status: 'AVAILABLE' | 'BOOKED' }>;
+  bookings: Array<{
+    id: string;
+    customer: { id: string; name: string; email: string };
+    status: 'CONFIRMED' | 'CANCELLED';
+    createdAt: string;
+    amountPaise: number;
+    seats: Array<{ id: string; row: string; number: number }>;
+  }>;
+}
+
 export interface MovieInput {
   title: string;
   posterUrl?: string | null;
@@ -56,3 +74,5 @@ export const getAdminShows = (token: string) => adminRequest<{ shows: AdminShow[
 export const createAdminShow = (token: string, input: ShowInput) => adminRequest<{ show: AdminShow }>('/api/admin/shows', token, { method: 'POST', body: JSON.stringify(input) });
 export const updateAdminShow = (token: string, showId: string, input: Partial<ShowInput>) => adminRequest<{ show: AdminShow }>(`/api/admin/shows/${encodeURIComponent(showId)}`, token, { method: 'PATCH', body: JSON.stringify(input) });
 export const deleteAdminShow = (token: string, showId: string) => adminRequest<void>(`/api/admin/shows/${encodeURIComponent(showId)}`, token, { method: 'DELETE' });
+
+export const getAdminShowReport = (token: string, showId: string) => adminRequest<{ report: AdminShowReport }>(`/api/admin/shows/${encodeURIComponent(showId)}/report`, token);
