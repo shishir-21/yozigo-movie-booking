@@ -281,3 +281,20 @@ describe('show seat availability', () => {
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
+
+
+describe('seat hold authorization', () => {
+  beforeEach(() => { vi.clearAllMocks(); process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-characters'; });
+
+  it('requires authentication to create a seat hold', async () => {
+    const response = await request(app).post('/api/shows/show-1/holds').send({ seatId: 'seat-1' });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('requires authentication to release a seat hold', async () => {
+    const response = await request(app).delete('/api/shows/show-1/holds/hold-1');
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+});

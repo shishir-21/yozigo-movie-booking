@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, getCurrentUser, login, register, type AuthUser } from './auth-client';
 import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-client';
 import { getShowSeats, type ShowSeat } from './seat-client';
+import { createSeatHold, releaseSeatHold, type SeatHold } from './hold-client';
 
 const TOKEN_KEY = 'yozigo_access_token';
 
@@ -30,6 +31,23 @@ export default function App() {
   const [showSeats, setShowSeats] = useState<ShowSeat[]>([]);
   const [seatsLoading, setSeatsLoading] = useState(false);
   const [seatsError, setSeatsError] = useState<string | null>(null);
+  const [activeHold, setActiveHold] = useState<SeatHold | null>(null);
+  const [holdSeconds, setHoldSeconds] = useState(0);
+  const [holdError, setHoldError] = useState<string | null>(null);
+  const [holdBusy, setHoldBusy] = useState(false);
+  const [seatReload, setSeatReload] = useState(0);
+
+  useEffect(() => {
+    if (!activeHold) { setHoldSeconds(0); return; }
+    const updateRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((new Date(activeHold.expiresAt).getTime() - Date.now()) / 1000));
+      setHoldSeconds(remaining);
+      if (remaining === 0) { setActiveHold(null); setSeatReload((value) => value + 1); }
+    };
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 1000);
+    return () => window.clearInterval(timer);
+  }, [activeHold]);
 
   useEffect(() => {
     let active = true;
@@ -89,7 +107,7 @@ export default function App() {
       .catch((error: unknown) => { if (active) setSeatsError(error instanceof Error ? error.message : 'Unable to load seat availability.'); })
       .finally(() => { if (active) setSeatsLoading(false); });
     return () => { active = false; };
-  }, [selectedShowId]);
+  }, [selectedShowId, seatReload]);
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -190,10 +208,10 @@ export default function App() {
           <section className="seat-dialog" role="dialog" aria-modal="true" aria-labelledby="seat-dialog-title">
             <button className="auth-close" type="button" aria-label="Close seat map" onClick={() => setSelectedShowId(null)}>×</button>
             <span className="section-kicker">CHOOSE YOUR VIEW</span><h2 id="seat-dialog-title">Seat availability.</h2>
-            <p className="auth-intro">This map shows current availability for the selected show.</p><div className="seat-screen">SCREEN</div>
+            <p className="auth-intro">Choose an available seat to hold it for five minutes. You must be signed in.</p><div className="seat-screen">SCREEN</div>
             <div className="seat-legend"><span><i className="seat-key available" /> Available</span><span><i className="seat-key unavailable" /> Unavailable</span></div>
-            {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => <div key={seat.id} className={"seat-tile " + (seat.status === "AVAILABLE" ? "available" : "unavailable")} title={"Row " + seat.row + ", seat " + seat.number + ": " + seat.status.toLowerCase()} aria-label={"Row " + seat.row + ", seat " + seat.number + ", " + seat.status.toLowerCase()}>{seat.row}{seat.number}</div>)}</div>}
-            <p className="seat-footnote">Seat selection and temporary holds are coming in the next step.</p>
+            {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => { const mine = activeHold?.seatId === seat.id; const unavailable = seat.status !== "AVAILABLE" && !mine; return <button key={seat.id} type="button" disabled={unavailable || holdBusy || (Boolean(activeHold) && !mine)} className={"seat-tile " + (mine ? "held" : unavailable ? "unavailable" : "available")} aria-label={"Row " + seat.row + ", seat " + seat.number + (mine ? ", held by you" : unavailable ? ", unavailable" : ", available")} onClick={async () => { setHoldError(null); if (!token || !user) { setHoldError("Please sign in before holding a seat."); openAuth("login"); return; } setHoldBusy(true); try { const result = await createSeatHold(selectedShowId, seat.id, token); setActiveHold(result.hold); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to hold this seat."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>{seat.row}{seat.number}</button>; })}</div>}
+            <p className="seat-footnote">A seat hold lasts five minutes and expires automatically.</p>{activeHold && <div className="hold-status" role="status"><span>Seat held · {Math.floor(holdSeconds / 60)}:{String(holdSeconds % 60).padStart(2, "0")} remaining</span><button type="button" disabled={holdBusy} onClick={async () => { if (!token) return; setHoldBusy(true); setHoldError(null); try { await releaseSeatHold(selectedShowId, activeHold.id, token); setActiveHold(null); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to release this hold."); } finally { setHoldBusy(false); } }}>Release seat</button></div>}{holdError && <p className="hold-error" role="alert">{holdError}</p>}
           </section>
         </div>
       )}
