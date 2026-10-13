@@ -33,7 +33,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically
 - [x] Bonus Flow 9: admin show reports, occupancy, collection totals, booking list, and seat map
 - [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
-- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export
+- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export\n- [ ] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
@@ -210,3 +210,13 @@ Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the
 - Confirmed bookings alone count toward booking totals, seats sold, occupancy, and collection. Cancelled bookings are excluded. All currency values in the API remain in paise.
 - The Admin management Analytics tab shows the number of shows, confirmed bookings, seats sold versus capacity, mock-payment collection, and per-show occupancy. CSV export includes report rows and a summary; cells are escaped and spreadsheet-formula prefixes are neutralized.
 - Collection values are derived from the assignment's simulated checkout records. This feature does not connect to Razorpay, Stripe, or any real payment provider.
+
+
+## Production readiness
+
+- Registration and login have separate in-memory rate limits. Defaults are 5 registration attempts and 10 login attempts per client IP per 15-minute window. Configure `AUTH_REGISTER_RATE_LIMIT_MAX`, `AUTH_LOGIN_RATE_LIMIT_MAX`, and `AUTH_RATE_LIMIT_WINDOW_MS` to adjust them.
+- Rate limiting is process-local and resets when the API restarts. For a multi-instance deployment, use a shared store or an upstream gateway rate limiter; this in-memory implementation is a baseline, not a distributed abuse-prevention system.
+- Every response includes an `X-Request-Id`. A safe incoming ID containing only letters, digits, dot, underscore, or hyphen is preserved; otherwise a UUID is generated. Server error logs include request ID, method, path, and error type, but not request bodies, authorization headers, or raw error messages.
+- `WEB_ORIGIN` accepts a comma-separated allowlist of exact browser origins. Keep it limited to the deployed frontend origin(s); do not use wildcard origins for authenticated deployments. Requests without an Origin header remain supported for server-to-server and CLI clients.
+- Production deployments must use HTTPS, a strong unique `JWT_SECRET` (at least 32 characters), a production database with restricted credentials, and secrets supplied through the deployment environment rather than committed files. Configure a real shared rate limiter at the edge before exposing multiple API instances.
+- The health endpoint reports process availability only; it does not guarantee that PostgreSQL is reachable. Checkout remains simulated and does not collect card details or charge real money.
