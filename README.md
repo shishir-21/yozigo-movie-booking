@@ -33,7 +33,8 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically
 - [x] Bonus Flow 9: admin show reports, occupancy, collection totals, booking list, and seat map
 - [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
-- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export\n- [ ] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
+- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export
+- [x] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
@@ -220,3 +221,29 @@ Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the
 - `WEB_ORIGIN` accepts a comma-separated allowlist of exact browser origins. Keep it limited to the deployed frontend origin(s); do not use wildcard origins for authenticated deployments. Requests without an Origin header remain supported for server-to-server and CLI clients.
 - Production deployments must use HTTPS, a strong unique `JWT_SECRET` (at least 32 characters), a production database with restricted credentials, and secrets supplied through the deployment environment rather than committed files. Configure a real shared rate limiter at the edge before exposing multiple API instances.
 - `GET /api/health` is a liveness check for the API process. `GET /api/health/ready` runs a lightweight database query and returns `200` only when PostgreSQL is reachable; database failures return a safe `503 DATABASE_UNAVAILABLE` response with a request ID. Checkout remains simulated and does not collect card details or charge real money.
+
+
+## API smoke checks
+
+With the API running and PostgreSQL available, run the liveness and database-readiness checks:
+
+```bash
+npm run smoke
+```
+
+The script checks `GET /api/health` and `GET /api/health/ready`, validates their JSON response shapes, and exits with a non-zero code if either check fails. It uses Node.js 22+'s built-in `fetch` and requires no additional package.
+
+To check a deployed API or a different local port, set `API_BASE_URL`:
+
+```bash
+API_BASE_URL=https://your-api.example.com npm run smoke
+```
+
+PowerShell:
+
+```powershell
+$env:API_BASE_URL = "http://localhost:4000"
+npm run smoke
+```
+
+The readiness check intentionally fails when PostgreSQL is unavailable. Start the database first; for deployed environments, verify the configured database connection and deployment logs if readiness returns `503 DATABASE_UNAVAILABLE`. The smoke script does not create data or exercise authenticated booking flows.
