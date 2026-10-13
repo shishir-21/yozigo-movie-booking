@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { publishSeatMapInvalidation } from '../lib/seat-events.js';
 
 export const bookingsRouter = Router();
 const idSchema = z.string().trim().min(1).max(64);
@@ -97,6 +98,7 @@ bookingsRouter.post('/shows/:showId/bookings', async (request: Request, response
       return { booking, alreadyConfirmed: false };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+    if (!result.alreadyConfirmed) publishSeatMapInvalidation(result.booking.showId);
     response.status(result.alreadyConfirmed ? 200 : 201).json({
       booking: {
         id: result.booking.id,
@@ -177,6 +179,7 @@ bookingsRouter.post('/bookings/:bookingId/cancel', async (request: Request, resp
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+    publishSeatMapInvalidation(booking.showId);
     response.status(200).json({ booking: { id: booking.id, status: booking.status }, message: 'Booking cancelled. Your seats are available again.' });
   } catch (error) {
     const code = errorCode(error);
