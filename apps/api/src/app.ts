@@ -7,6 +7,7 @@ import { moviesRouter } from './routes/movies.js';
 import { seatsRouter } from './routes/seats.js';
 import { holdsRouter } from './routes/holds.js';
 import { bookingsRouter } from './routes/bookings.js';
+import { adminRouter } from './routes/admin.js';
 
 export const app = express();
 
@@ -20,6 +21,7 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/movies', moviesRouter);
 app.use('/api/shows', seatsRouter);
 app.use('/api/shows', holdsRouter);
