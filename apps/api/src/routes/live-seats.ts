@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { publishSeatMapInvalidation, subscribeToShow } from '../lib/seat-events.js';
+import { subscribeToShow } from '../lib/seat-events.js';
 
 export const liveSeatsRouter = Router();
 const showIdSchema = z.string().trim().min(1).max(64);
@@ -41,5 +41,3 @@ liveSeatsRouter.get('/:showId/seat-events', async (request: Request, response: R
   }
 });
 
-// Exporting the publisher from the same module is unnecessary; mutations use the shared event bus.
-export { publishSeatMapInvalidation };
