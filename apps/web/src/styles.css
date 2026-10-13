@@ -18,3 +18,28 @@
 .seat-tile{border:0;font:inherit;cursor:pointer;transition:transform .12s,outline-color .12s}.seat-tile.available:hover{transform:translateY(-2px);outline:2px solid #ffffff99}.seat-tile.held{background:#f5bd64;color:#211607;text-decoration:none}.seat-tile.unavailable{cursor:not-allowed}.seat-tile:disabled{cursor:not-allowed;opacity:.78}.hold-status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:12px;border:1px solid #f5bd6440;background:#f5bd640c;color:#f5d5a3;font-size:11px}.hold-status button{border:1px solid #ffffff30;background:transparent;color:#f6f3ee;padding:7px 10px;border-radius:3px;font:inherit;cursor:pointer}.hold-error{margin:12px 0;color:#ffb5b5;font-size:11px}
 
 .mock-checkout{width:100%;margin-top:14px;border:0;border-radius:4px;padding:13px 16px;background:var(--accent);color:#14180d;font-size:12px;font-weight:700;cursor:pointer}.mock-checkout:disabled{opacity:.55;cursor:not-allowed}.booking-success{padding:12px;border:1px solid #d5fd7144;background:#d5fd710d;color:#d5fd71;font-size:12px;line-height:1.6}
+
+
+/* Customer booking history */
+.booking-history-nav{white-space:nowrap;cursor:pointer}
+.booking-dialog{position:relative;width:min(760px,94vw);max-height:90vh;overflow:auto;padding:35px;background:#15171d;border:1px solid #ffffff20;border-radius:8px;box-shadow:0 24px 90px #000a}
+.booking-dialog h2{font-size:32px;letter-spacing:-1.2px;font-weight:500;margin:12px 0}
+.booking-dialog h2 span{color:var(--accent)}
+.booking-dialog .auth-intro{margin-bottom:20px}
+.booking-list{display:grid;gap:12px}
+.booking-card{padding:18px;border:1px solid #ffffff1a;border-radius:5px;background:#0d0f14}
+.booking-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.booking-card-heading h3{font-size:17px;font-weight:500;margin:8px 0 0}
+.booking-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:20px;padding:6px 9px;font-size:9px;font-weight:700;letter-spacing:.3px}
+.booking-status.confirmed{color:#d5fd71;background:#d5fd7115;border:1px solid #d5fd7135}
+.booking-status.cancelled{color:#ffb4b4;background:#ff797912;border:1px solid #ff797933}
+.booking-meta{display:grid;grid-template-columns:1.3fr 1fr auto;gap:16px;margin-top:18px}
+.booking-meta span{display:grid;gap:6px;color:#c4c3c9;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.booking-meta strong{font-size:9px;color:#85858d;font-weight:500;text-transform:uppercase;letter-spacing:1px}
+.booking-show-id{font-size:9px;color:#777780;margin:15px 0 0}
+.booking-empty{padding:35px 18px;text-align:center;border:1px dashed #ffffff2b;background:#0d0f14}
+.booking-empty>span{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#d5fd7114;color:var(--accent);font-size:22px}
+.booking-empty h3{font-size:17px;font-weight:500;margin:15px 0 7px}
+.booking-empty p{font-size:11px;color:#9a99a1;line-height:1.7;margin:0 auto 18px}
+.booking-empty .auth-submit{max-width:180px}
+@media(max-width:560px){.booking-dialog{padding:30px 16px}.booking-dialog h2{font-size:28px}.booking-card{padding:14px}.booking-card-heading h3{font-size:15px}.booking-meta{grid-template-columns:1fr 1fr;gap:13px}.booking-meta span:last-child{grid-column:1/-1}.booking-history-nav{font-size:10px;padding:9px 10px}.booking-status{font-size:8px;padding:5px 7px}}

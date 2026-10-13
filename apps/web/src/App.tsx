@@ -4,6 +4,7 @@ import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-clie
 import { getShowSeats, type ShowSeat } from './seat-client';
 import { createSeatHold, releaseSeatHold, type SeatHold } from './hold-client';
 import { confirmBooking } from './booking-client';
+import BookingHistory from './BookingHistory';
 
 const TOKEN_KEY = 'yozigo_access_token';
 
@@ -39,6 +40,7 @@ export default function App() {
   const [seatReload, setSeatReload] = useState(0);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [bookingMessage, setBookingMessage] = useState<string | null>(null);
+  const [bookingHistoryOpen, setBookingHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (!activeHold) { setHoldSeconds(0); return; }
@@ -160,6 +162,7 @@ export default function App() {
         <div className="nav-actions">
           {isRestoringSession ? <span className="session-loading" role="status">Checking session…</span> : user ? (
             <>
+              <button className="signin booking-history-nav" type="button" onClick={() => setBookingHistoryOpen(true)}>My bookings</button>
               <span className="user-greeting">Hi, {user.name}</span>
               <span className="avatar" aria-label={`Signed in as ${user.name}`}>{initials(user.name) || 'Y'}</span>
               <button className="signin signout" type="button" onClick={signOut}>Sign out</button>
@@ -205,6 +208,8 @@ export default function App() {
       </section>
       <section className="experience-strip" id="experiences"><span className="strip-icon">✳</span><div><p className="section-kicker">THE YOZIGO EXPERIENCE</p><h2>Make a night of it.</h2></div><p className="strip-copy">Less scrolling, more story. Your cinema plans, all in one place.</p></section>
       <footer id="about"><a className="brand" href="#top"><span className="brand-mark">y</span> yozigo<span className="brand-dot">.</span></a><span>Good stories bring us together.</span><span>© 2026 Yozigo · Internship project</span></footer>
+
+      {bookingHistoryOpen && token && <BookingHistory token={token} onClose={() => setBookingHistoryOpen(false)} />}
 
       {selectedShowId && (
         <div className="auth-backdrop seat-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedShowId(null); }}>
