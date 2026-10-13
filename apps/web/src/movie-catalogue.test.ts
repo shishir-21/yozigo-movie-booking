@@ -16,7 +16,7 @@ describe('movie catalogue filters', () => {
   });
 
   it('combines title search and language filters', () => {
-    expect(filterMovies(movies, { ...defaults, query: 'a', language: 'English' }).map((movie) => movie.id)).toEqual(['a', 'c']);
+    expect(filterMovies(movies, { ...defaults, query: 'r', language: 'English' }).map((movie) => movie.id)).toEqual(['a', 'c']);
     expect(filterMovies(movies, { ...defaults, query: 'zebra', language: 'English' })).toEqual([]);
   });
 
