@@ -10,6 +10,7 @@ import { bookingsRouter } from './routes/bookings.js';
 import { adminRouter } from './routes/admin.js';
 import { liveSeatsRouter } from './routes/live-seats.js';
 import { createRateLimiter, requestId } from './middleware/security.js';
+import { prisma } from './lib/prisma.js';
 
 export const app = express();
 
@@ -40,6 +41,23 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_request, response) => {
   response.status(200).json({ status: 'ok', service: 'yozigo-api' });
+});
+
+app.get('/api/health/ready', async (_request, response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    response.status(200).json({ status: 'ready', service: 'yozigo-api', database: 'ok' });
+  } catch {
+    response.status(503).json({
+      status: 'not_ready',
+      service: 'yozigo-api',
+      error: {
+        code: 'DATABASE_UNAVAILABLE',
+        message: 'Database is not ready',
+        requestId: response.locals.requestId,
+      },
+    });
+  }
 });
 
 app.use('/api/auth/register', createRateLimiter({
