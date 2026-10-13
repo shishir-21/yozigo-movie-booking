@@ -82,6 +82,75 @@ async function hasScheduleOverlap(startsAt: Date, durationMin: number, excludeSh
   });
 }
 
+
+adminRouter.get('/shows/:showId/report', async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    if (!await requireAdmin(request, response)) return;
+    const parsedId = idSchema.safeParse(request.params.showId);
+    if (!parsedId.success) {
+      sendValidationError(response, 'Provide a valid show ID.');
+      return;
+    }
+
+    const show = await prisma.show.findUnique({
+      where: { id: parsedId.data },
+      include: { movie: { select: { title: true, durationMin: true } } },
+    });
+    if (!show) {
+      response.status(404).json({ error: { code: 'SHOW_NOT_FOUND', message: 'Show not found.' } });
+      return;
+    }
+
+    const [seats, bookings] = await Promise.all([
+      prisma.seat.findMany({ orderBy: [{ row: 'asc' }, { number: 'asc' }], select: { id: true, row: true, number: true } }),
+      prisma.booking.findMany({
+        where: { showId: show.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          seats: { include: { seat: { select: { id: true, row: true, number: true } } } },
+        },
+      }),
+    ]);
+
+    const confirmedBookings = bookings.filter((booking) => booking.status === 'CONFIRMED');
+    const bookedSeatIds = new Set(confirmedBookings.flatMap((booking) => booking.seats.map((entry) => entry.seatId)));
+    const capacity = seats.length;
+    const seatsBooked = seats.filter((seat) => bookedSeatIds.has(seat.id)).length;
+    const moneyCollectedPaise = confirmedBookings.reduce((total, booking) => total + booking.amountPaise, 0);
+
+    response.status(200).json({
+      report: {
+        show: {
+          id: show.id,
+          movieTitle: show.movie.title,
+          startsAt: show.startsAt,
+          pricePaise: show.pricePaise,
+          durationMin: show.movie.durationMin,
+        },
+        capacity,
+        seatsBooked,
+        percentageFull: capacity === 0 ? 0 : Math.round((seatsBooked / capacity) * 10000) / 100,
+        moneyCollectedPaise,
+        seats: seats.map((seat) => ({
+          id: seat.id,
+          row: seat.row,
+          number: seat.number,
+          status: bookedSeatIds.has(seat.id) ? 'BOOKED' : 'AVAILABLE',
+        })),
+        bookings: bookings.map((booking) => ({
+          id: booking.id,
+          customer: { id: booking.user.id, name: booking.user.name, email: booking.user.email },
+          status: booking.status,
+          createdAt: booking.createdAt,
+          amountPaise: booking.amountPaise,
+          seats: booking.seats.map((entry) => ({ id: entry.seat.id, row: entry.seat.row, number: entry.seat.number })),
+        })),
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 adminRouter.get('/movies', async (request: Request, response: Response, next: NextFunction) => {
   try {
     if (!await requireAdmin(request, response)) return;
