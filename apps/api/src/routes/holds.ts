@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { publishSeatMapInvalidation } from '../lib/seat-events.js';
 
 export const holdsRouter = Router();
 const idSchema = z.string().trim().min(1).max(64);
@@ -93,6 +94,7 @@ holdsRouter.post('/:showId/holds', async (request: Request, response: Response, 
       return createdHold;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+    publishSeatMapInvalidation(hold.showId);
     response.status(201).json({ hold, expiresAt: hold.expiresAt });
   } catch (error) {
     const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
@@ -145,6 +147,7 @@ holdsRouter.delete('/:showId/holds/:holdId', async (request: Request, response: 
       response.status(404).json({ error: { code: 'HOLD_NOT_FOUND', message: 'No active hold was found for this account.' } });
       return;
     }
+    publishSeatMapInvalidation(parsedShow.data);
     response.status(200).json({ released: true });
   } catch (error) {
     next(error);
