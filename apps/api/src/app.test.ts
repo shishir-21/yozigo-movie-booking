@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 vi.mock('./lib/prisma.js', () => ({
-  prisma: { user: { findUnique: vi.fn(), create: vi.fn() }, movie: { findMany: vi.fn(), findUnique: vi.fn() }, show: { findMany: vi.fn() } },
+  prisma: { user: { findUnique: vi.fn(), create: vi.fn() }, movie: { findMany: vi.fn(), findUnique: vi.fn() }, show: { findMany: vi.fn(), findUnique: vi.fn() }, seat: { findMany: vi.fn() }, seatHold: { findMany: vi.fn() }, bookingSeat: { findMany: vi.fn() } },
 }));
 
 import { prisma } from './lib/prisma.js';
@@ -234,5 +234,50 @@ describe('public movie and show browsing', () => {
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('MOVIE_NOT_FOUND');
     expect(prisma.show.findMany).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('show seat availability', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('returns available and unavailable seats based on active holds and confirmed bookings', async () => {
+    vi.mocked(prisma.show.findUnique).mockResolvedValue({ id: 'show-1' } as never);
+    vi.mocked(prisma.seat.findMany).mockResolvedValue([
+      { id: 'seat-a1', row: 'A', number: 1 },
+      { id: 'seat-a2', row: 'A', number: 2 },
+      { id: 'seat-a3', row: 'A', number: 3 },
+    ] as never);
+    vi.mocked(prisma.seatHold.findMany).mockResolvedValue([{ seatId: 'seat-a2' }] as never);
+    vi.mocked(prisma.bookingSeat.findMany).mockResolvedValue([{ seatId: 'seat-a3' }] as never);
+
+    const response = await request(app).get('/api/shows/show-1/seats');
+
+    expect(response.status).toBe(200);
+    expect(response.body.seats).toEqual([
+      { id: 'seat-a1', row: 'A', number: 1, status: 'AVAILABLE' },
+      { id: 'seat-a2', row: 'A', number: 2, status: 'UNAVAILABLE' },
+      { id: 'seat-a3', row: 'A', number: 3, status: 'UNAVAILABLE' },
+    ]);
+    expect(prisma.seatHold.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { showId: 'show-1', status: 'ACTIVE', expiresAt: { gt: expect.any(Date) } },
+    }));
+    expect(prisma.bookingSeat.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { showId: 'show-1', booking: { status: 'CONFIRMED' } },
+    }));
+  });
+
+  it('returns 404 for an unknown show and does not query seat records', async () => {
+    vi.mocked(prisma.show.findUnique).mockResolvedValue(null);
+    const response = await request(app).get('/api/shows/missing/seats');
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('SHOW_NOT_FOUND');
+    expect(prisma.seat.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed show IDs', async () => {
+    const response = await request(app).get('/api/shows/%20/seats');
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

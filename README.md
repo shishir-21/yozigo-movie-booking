@@ -23,13 +23,14 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Frontend sign-up/login and session restoration through the protected current-user API
 - [x] Frontend auth client tests for registration, API errors, token verification, and network failures
 - [x] Public movie catalogue and upcoming showtime APIs backed by PostgreSQL, with frontend loading/error states
-- [ ] Seat map, 5-minute seat holds and expiry
+- [x] Show-specific seat map and availability API/UI
+- [ ] 5-minute seat holds and expiry
 - [ ] Mock payment and concurrency-safe booking confirmation
 - [ ] Customer booking history
 - [ ] Admin movie/show management and overlap validation
 - [ ] Bonus Flows 8–10
 
-**Current limitation:** the movie catalogue is read from PostgreSQL and the seed script creates fictional demo movies and upcoming shows. Booking controls remain disabled until seat holds, payments, and booking confirmation are implemented. Authentication is available through the Sign in and Create account controls; the complete booking flow is not done yet.
+**Current limitation:** the movie catalogue is read from PostgreSQL and the seed script creates fictional demo movies and upcoming shows. Seat availability is visible for each movie's next upcoming show. Booking controls remain disabled until temporary seat holds, payments, and booking confirmation are implemented. Authentication is available through the Sign in and Create account controls; the complete booking flow is not done yet.
 
 ## Requirements
 
@@ -56,6 +57,13 @@ The API health check is at `http://localhost:4000/api/health`; the web app is at
 - `GET /api/movies/:movieId/shows` returns upcoming shows for one movie, ordered by start time. Prices are expressed in paise and start times are ISO timestamps.
 - Both endpoints are public. Past shows are excluded.
 - `npm run db:seed` preserves the 80-seat seed and creates/updates fictional demo movies with upcoming shows. It is safe to rerun without duplicating seats, catalogue entries, or shows for the same seeded dates.
+
+## Seat availability API
+
+- `GET /api/shows/:showId/seats` returns the fixed cinema seat layout and each seat's availability for the requested show.
+- Seats are unavailable when they have an active, unexpired hold for that show or belong to a confirmed booking for that show. Expired holds are ignored.
+- Unknown shows return `404 SHOW_NOT_FOUND`; malformed IDs return `400 VALIDATION_ERROR`.
+- The seat map is read-only in this stage. Creating a temporary hold and safely handling concurrent requests are the next implementation step.
 
 ## Authentication API
 
