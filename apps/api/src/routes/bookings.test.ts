@@ -32,7 +32,7 @@ const future = new Date(Date.now() + 60 * 60 * 1000);
 const booking = {
   id: 'booking-1', userId, showId: 'show-1', amountPaise: 25000, status: 'CONFIRMED',
   createdAt: new Date(), holdId: 'hold-1',
-  show: { movie: { title: 'Demo Movie' } },
+  show: { startsAt: future, movie: { title: 'Demo Movie' } },
   seats: [{ seatId: 'seat-1', seat: { row: 'A', number: 1 } }],
 };
 
@@ -66,7 +66,7 @@ describe('mock payment and booking confirmation', () => {
 
     const response = await request(app).post('/api/shows/show-1/bookings').set('Authorization', `Bearer ${token()}`).send({ holdId: 'hold-1' });
     expect(response.status).toBe(201);
-    expect(response.body.booking).toMatchObject({ id: 'booking-1', status: 'CONFIRMED', amountPaise: 25000, movieTitle: 'Demo Movie' });
+    expect(response.body.booking).toMatchObject({ id: 'booking-1', status: 'CONFIRMED', amountPaise: 25000, movieTitle: 'Demo Movie', startsAt: future.toISOString() });
     expect(response.body.payment).toMatchObject({ mode: 'MOCK', status: 'SUCCEEDED' });
     expect(tx.seatHold.update).toHaveBeenCalledWith({ where: { id: 'hold-1' }, data: { status: 'CONVERTED' } });
     expect(tx.seatClaim.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { kind: 'BOOKED', expiresAt: null } }));
