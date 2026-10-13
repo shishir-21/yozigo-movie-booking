@@ -127,4 +127,59 @@ describe('admin movie and show management', () => {
     expect(response.body.error.code).toBe('SHOW_NOT_FOUND');
   });
 
+
+  it('returns date-filtered analytics using confirmed bookings only', async () => {
+    vi.mocked(prisma.show.findMany).mockResolvedValue([{
+      id: 'show-analytics',
+      startsAt: new Date('2026-10-15T18:00:00.000Z'),
+      movie: { title: 'Analytics Movie' },
+      bookings: [
+        { status: 'CONFIRMED', amountPaise: 50000, seats: [{ id: 'seat-1' }, { id: 'seat-2' }] },
+        { status: 'CANCELLED', amountPaise: 25000, seats: [{ id: 'seat-3' }] },
+      ],
+    }] as never);
+    vi.mocked(prisma.seat.findMany).mockResolvedValue(Array.from({ length: 80 }, (_, index) => ({ id: `seat-${index}` })) as never);
+
+    const response = await request(app)
+      .get('/api/admin/analytics?from=2026-10-15&to=2026-10-15')
+      .set('Authorization', `Bearer ${tokenFor(admin.id)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.analytics).toMatchObject({
+      from: '2026-10-15',
+      to: '2026-10-15',
+      showCount: 1,
+      confirmedBookings: 1,
+      seatsSold: 2,
+      capacity: 80,
+      moneyCollectedPaise: 50000,
+      shows: [{
+        showId: 'show-analytics',
+        movieTitle: 'Analytics Movie',
+        capacity: 80,
+        confirmedBookings: 1,
+        seatsSold: 2,
+        percentageFull: 2.5,
+        moneyCollectedPaise: 50000,
+      }],
+    });
+    expect(prisma.show.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { startsAt: { gte: new Date('2026-10-15T00:00:00.000Z'), lt: new Date('2026-10-16T00:00:00.000Z') } },
+    }));
+  });
+
+  it('rejects invalid analytics date ranges and customer access', async () => {
+    const invalid = await request(app)
+      .get('/api/admin/analytics?from=2026-10-20&to=2026-10-10')
+      .set('Authorization', `Bearer ${tokenFor(admin.id)}`);
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error.code).toBe('VALIDATION_ERROR');
+
+    const forbidden = await request(app)
+      .get('/api/admin/analytics')
+      .set('Authorization', `Bearer ${tokenFor(customer.id)}`);
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.body.error.code).toBe('FORBIDDEN');
+  });
+
 });
