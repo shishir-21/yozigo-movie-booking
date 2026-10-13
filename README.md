@@ -148,3 +148,21 @@ GitHub Actions runs install, Prisma generation, type checks, tests, and builds o
 - Booking confirmation, hold conversion, and claim conversion run in a serializable transaction. The unique `(showId, seatId)` claim is retained as the final concurrency guard. Retrying a successful request returns the original booking instead of creating a duplicate.
 - `GET /api/bookings/me` returns the authenticated customer's booking history.
 - The response explicitly identifies payment as `MOCK`; no payment provider is contacted, no card data is collected, and no real money is charged.
+
+
+## Admin movie and show management
+
+Admin management endpoints require a bearer JWT belonging to a database user whose role is `ADMIN`. Public registration always creates `CUSTOMER` accounts; do not promote users through public APIs.
+
+- `GET /api/admin/movies` — list movies and show counts.
+- `POST /api/admin/movies` — create a movie. Required fields: `title`, `language`, `durationMin`, `rating` (`U`, `UA`, or `A`); `posterUrl` and `description` are optional.
+- `PATCH /api/admin/movies/:movieId` — update validated movie fields.
+- `DELETE /api/admin/movies/:movieId` — delete a movie only when it has no shows.
+- `GET /api/admin/shows` — list scheduled shows with movie metadata.
+- `POST /api/admin/shows` — create a show with `movieId`, ISO-8601 `startsAt`, and positive `pricePaise`.
+- `PATCH /api/admin/shows/:showId` — update a show.
+- `DELETE /api/admin/shows/:showId` — delete a show only when it has no confirmed bookings or seat claims.
+
+The single-screen schedule uses each movie's duration plus a 15-minute turnaround buffer. The API rejects overlapping screenings, including overlaps caused by updates. Show time/movie changes are rejected when confirmed bookings or seat claims already exist. The API returns `403 FORBIDDEN` to authenticated non-admin users and `409 RESOURCE_CONFLICT` for schedule or resource conflicts.
+
+Admin accounts must be provisioned through trusted database/seed tooling; never expose an endpoint that allows a customer to grant themselves the ADMIN role.
