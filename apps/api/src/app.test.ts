@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 vi.mock('./lib/prisma.js', () => ({
   prisma: { user: { findUnique: vi.fn(), create: vi.fn() } },
@@ -114,5 +115,42 @@ describe('API foundation and authentication', () => {
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+  });
+
+  it('rejects requests to the current-user endpoint without a bearer token', async () => {
+    const response = await request(app).get('/api/auth/me');
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('rejects invalid access tokens', async () => {
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer invalid-token');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('INVALID_TOKEN');
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('validates a JWT and returns the authenticated user without a password hash', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser);
+    const token = jwt.sign({ role: 'CUSTOMER' }, process.env.JWT_SECRET as string, {
+      subject: testUser.id,
+      expiresIn: '1d',
+    });
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.user).toEqual({
+      id: testUser.id,
+      name: testUser.name,
+      email: testUser.email,
+      role: 'CUSTOMER',
+    });
+    expect(response.body.user).not.toHaveProperty('passwordHash');
   });
 });
