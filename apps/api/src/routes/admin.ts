@@ -83,6 +83,77 @@ async function hasScheduleOverlap(startsAt: Date, durationMin: number, excludeSh
 }
 
 
+const analyticsQuerySchema = z.object({
+  from: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+  to: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+});
+
+adminRouter.get('/analytics', async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    if (!await requireAdmin(request, response)) return;
+    const parsed = analyticsQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      sendValidationError(response, 'Use valid from and to dates in YYYY-MM-DD format.');
+      return;
+    }
+    const { from, to } = parsed.data;
+    const fromDate = from ? new Date(`${from}T00:00:00.000Z`) : undefined;
+    const toDate = to ? new Date(`${to}T00:00:00.000Z`) : undefined;
+    if ((fromDate && Number.isNaN(fromDate.getTime())) || (toDate && Number.isNaN(toDate.getTime())) ||
+      (from && fromDate?.toISOString().slice(0, 10) !== from) ||
+      (to && toDate?.toISOString().slice(0, 10) !== to) ||
+      (fromDate && toDate && fromDate > toDate)) {
+      sendValidationError(response, 'The date range is invalid. The start date must not be after the end date.');
+      return;
+    }
+    const where = {
+      ...(fromDate || toDate ? { startsAt: {
+        ...(fromDate ? { gte: fromDate } : {}),
+        ...(toDate ? { lt: new Date(toDate.getTime() + 24 * 60 * 60_000) } : {}),
+      } } : {}),
+    };
+    const [shows, seats] = await Promise.all([
+      prisma.show.findMany({
+        where,
+        orderBy: { startsAt: 'asc' },
+        include: {
+          movie: { select: { title: true } },
+          bookings: { select: { status: true, amountPaise: true, seats: { select: { id: true } } } },
+        },
+      }),
+      prisma.seat.findMany({ select: { id: true } }),
+    ]);
+    const capacity = seats.length;
+    const showRows = shows.map((show) => {
+      const confirmed = show.bookings.filter((booking) => booking.status === 'CONFIRMED');
+      const seatsSold = confirmed.reduce((total, booking) => total + booking.seats.length, 0);
+      const moneyCollectedPaise = confirmed.reduce((total, booking) => total + booking.amountPaise, 0);
+      return {
+        showId: show.id,
+        movieTitle: show.movie.title,
+        startsAt: show.startsAt,
+        capacity,
+        confirmedBookings: confirmed.length,
+        seatsSold,
+        percentageFull: capacity === 0 ? 0 : Math.round((seatsSold / capacity) * 10000) / 100,
+        moneyCollectedPaise,
+      };
+    });
+    response.status(200).json({
+      analytics: {
+        from: from ?? null,
+        to: to ?? null,
+        showCount: showRows.length,
+        confirmedBookings: showRows.reduce((total, show) => total + show.confirmedBookings, 0),
+        seatsSold: showRows.reduce((total, show) => total + show.seatsSold, 0),
+        capacity: capacity * showRows.length,
+        moneyCollectedPaise: showRows.reduce((total, show) => total + show.moneyCollectedPaise, 0),
+        shows: showRows,
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 adminRouter.get('/shows/:showId/report', async (request: Request, response: Response, next: NextFunction) => {
   try {
     if (!await requireAdmin(request, response)) return;
