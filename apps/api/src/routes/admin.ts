@@ -84,8 +84,8 @@ async function hasScheduleOverlap(startsAt: Date, durationMin: number, excludeSh
 
 
 const analyticsQuerySchema = z.object({
-  from: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
-  to: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 adminRouter.get('/analytics', async (request: Request, response: Response, next: NextFunction) => {
