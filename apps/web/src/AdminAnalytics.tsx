@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from './auth-client';
 import { getAdminAnalytics, type AdminAnalytics } from './admin-client';
 
@@ -10,7 +10,8 @@ function dateTime(value: string): string {
 }
 function csvCell(value: string | number): string {
   const text = String(value);
-  return `"${text.replace(/"/g, '""')}"`;
+  const safe = /^[=+@\\-\\t\\r]/.test(text) ? `'${text}` : text;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 function exportCsv(analytics: AdminAnalytics) {
   const rows: Array<Array<string | number>> = [
@@ -69,7 +70,7 @@ export default function AdminAnalytics({ token }: { token: string }) {
 
   useEffect(() => { void reload(); }, [reload]);
 
-  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (from && to && from > to) {
       setError('The start date must be on or before the end date.');
