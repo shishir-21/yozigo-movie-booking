@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"npm run dev -w @yozigo/api\" \"npm run dev -w @yozigo/web\"",
     "build": "npm run build -w @yozigo/api && npm run build -w @yozigo/web",
-    "test": "npm run test -w @yozigo/api && npx vitest run apps/web/src/auth-client.test.ts",
+    "test": "npm run test -w @yozigo/api && npx vitest run apps/web/src/auth-client.test.ts apps/web/src/movie-client.test.ts",
     "db:generate": "npm run db:generate -w @yozigo/api",
     "db:migrate": "npm run db:migrate -w @yozigo/api",
     "db:seed": "npm run db:seed -w @yozigo/api",
