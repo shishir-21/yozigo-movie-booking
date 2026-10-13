@@ -6,7 +6,7 @@ describe('booking client', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
   it('confirms a booking using the mock payment endpoint and bearer token', async () => {
-    const payload = { booking: { id: 'booking-1', showId: 'show-1', movieTitle: 'Demo', amountPaise: 25000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }] }, payment: { mode: 'MOCK' as const, status: 'SUCCEEDED' as const, message: 'Demo payment only. No real money was charged.' }, alreadyConfirmed: false };
+    const payload = { booking: { id: 'booking-1', showId: 'show-1', movieTitle: 'Demo', amountPaise: 25000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', startsAt: '2026-10-20T18:30:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }] }, payment: { mode: 'MOCK' as const, status: 'SUCCEEDED' as const, message: 'Demo payment only. No real money was charged.' }, alreadyConfirmed: false };
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 201, headers: { 'Content-Type': 'application/json' } }));
     await expect(confirmBooking('show/1', 'hold-1', 'token-123')).resolves.toEqual(payload);
     expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/shows/show%2F1/bookings', expect.objectContaining({
@@ -16,9 +16,10 @@ describe('booking client', () => {
     }));
   });
 
-  it('loads customer booking history', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ bookings: [] }), { status: 200 }));
-    await expect(getMyBookings('token-123')).resolves.toEqual({ bookings: [] });
+  it('loads customer booking history including the actual showtime', async () => {
+    const payload = { bookings: [{ id: 'booking-1', showId: 'show-1', movieTitle: 'Demo', amountPaise: 25000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', startsAt: '2026-10-20T18:30:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }] }] };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));
+    await expect(getMyBookings('token-123')).resolves.toEqual(payload);
     expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bookings/me', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token-123' }) }));
   });
 

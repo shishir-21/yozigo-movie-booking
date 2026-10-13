@@ -107,6 +107,7 @@ bookingsRouter.post('/shows/:showId/bookings', async (request: Request, response
         amountPaise: result.booking.amountPaise,
         status: result.booking.status,
         createdAt: result.booking.createdAt,
+        startsAt: result.booking.show.startsAt,
         seats: result.booking.seats.map((entry) => ({ id: entry.seatId, row: entry.seat.row, number: entry.seat.number })),
       },
       payment: { mode: 'MOCK', status: 'SUCCEEDED', message: 'Demo payment only. No real money was charged.' },
@@ -225,6 +226,7 @@ bookingsRouter.get('/bookings/me', async (request: Request, response: Response, 
       amountPaise: booking.amountPaise,
       status: booking.status,
       createdAt: booking.createdAt,
+      startsAt: booking.show.startsAt,
       seats: booking.seats.map((entry) => ({ id: entry.seatId, row: entry.seat.row, number: entry.seat.number })),
     })) });
   } catch (error) {

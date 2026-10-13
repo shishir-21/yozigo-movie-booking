@@ -7,6 +7,7 @@ export interface ConfirmedBooking {
   amountPaise: number;
   status: 'CONFIRMED' | 'CANCELLED';
   createdAt: string;
+  startsAt: string;
   seats: Array<{ id: string; row: string; number: number }>;
 }
 

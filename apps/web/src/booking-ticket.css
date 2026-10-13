@@ -1,0 +1,24 @@
+@media screen {
+  .booking-ticket-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .booking-print-button { border: 1px solid #d5fd71; border-radius: 3px; background: #d5fd71; color: #15180e; padding: 9px 13px; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+  .booking-print-button:disabled { opacity: .6; cursor: wait; }
+}
+@media print {
+  @page { size: auto; margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .booking-backdrop, .booking-backdrop * { visibility: visible !important; }
+  .booking-backdrop { position: static !important; display: block !important; padding: 0 !important; overflow: visible !important; background: #fff !important; color: #111 !important; backdrop-filter: none !important; }
+  .booking-dialog { width: 100% !important; max-width: none !important; max-height: none !important; overflow: visible !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: #fff !important; color: #111 !important; box-shadow: none !important; }
+  .booking-dialog > :not(.booking-list) { display: none !important; }
+  .booking-list { display: block !important; }
+  .booking-card:not(.booking-card-printing) { display: none !important; }
+  .booking-card-printing { display: block !important; break-inside: avoid; padding: 22px !important; border: 1px solid #bbb !important; border-radius: 8px !important; background: #fff !important; color: #111 !important; }
+  .booking-card-printing h3, .booking-card-printing p, .booking-card-printing span, .booking-card-printing strong { color: #111 !important; }
+  .booking-card-printing .section-kicker { color: #444 !important; }
+  .booking-card-printing .booking-status { border: 1px solid #777 !important; background: #fff !important; }
+  .booking-ticket-actions, .booking-print-button, .booking-cancel-button, .auth-close { display: none !important; }
+  .booking-meta { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; }
+  .booking-meta > span { display: block !important; }
+  .booking-meta strong { display: block !important; margin-bottom: 4px !important; }
+  .booking-show-id { margin-top: 18px !important; padding-top: 12px !important; border-top: 1px dashed #aaa !important; }
+}

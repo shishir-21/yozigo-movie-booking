@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from './auth-client';
 import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-client';
+import './booking-ticket.css';
 
 interface BookingHistoryProps {
   token: string;
@@ -36,6 +37,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [printingBookingId, setPrintingBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -60,6 +62,14 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
 
     return () => { active = false; };
   }, [token, reloadKey]);
+
+  useEffect(() => {
+    if (!printingBookingId) return;
+    const finishPrinting = () => setPrintingBookingId(null);
+    window.addEventListener('afterprint', finishPrinting);
+    window.requestAnimationFrame(() => window.print());
+    return () => window.removeEventListener('afterprint', finishPrinting);
+  }, [printingBookingId]);
 
   async function handleCancel(booking: ConfirmedBooking) {
     if (!window.confirm(`Cancel booking ${bookingReference(booking.id)}? This is only allowed more than two hours before the show.`)) return;
@@ -107,7 +117,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
         ) : (
           <div className="booking-list">
             {bookings.map((booking) => (
-              <article className="booking-card" key={booking.id}>
+              <article className={`booking-card${printingBookingId === booking.id ? " booking-card-printing" : ""}`} key={booking.id}>
                 <div className="booking-card-heading">
                   <div>
                     <span className="section-kicker">BOOKING {bookingReference(booking.id)}</span>
@@ -116,20 +126,24 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                   <span className={`booking-status ${booking.status.toLowerCase()}`}>{booking.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}</span>
                 </div>
                 <div className="booking-meta">
+                  <span><strong>Showtime</strong>{formatBookingDate(booking.startsAt)}</span>
                   <span><strong>Booked</strong>{formatBookingDate(booking.createdAt)}</span>
                   <span><strong>Seats</strong>{booking.seats.length ? booking.seats.map((seat) => `${seat.row}${seat.number}`).join(', ') : 'Not available'}</span>
                   <span><strong>Total</strong>{formatAmount(booking.amountPaise)}</span>
                 </div>
                 <p className="booking-show-id">Show reference: {booking.showId.slice(0, 8).toUpperCase()}</p>
                 {booking.status === 'CONFIRMED' && (
-                  <button
+                  <div className="booking-ticket-actions">
+                    <button type="button" className="booking-print-button" onClick={() => setPrintingBookingId(booking.id)} disabled={printingBookingId !== null}>Print ticket</button>
+                    <button
                     type="button"
                     className="booking-cancel-button"
                     onClick={() => void handleCancel(booking)}
                     disabled={cancellingId !== null}
                   >
                     {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
-                  </button>
+                    </button>
+                  </div>
                 )}
               </article>
             ))}
