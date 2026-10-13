@@ -5,9 +5,9 @@ import express from 'express';
 
 const { tx, transaction } = vi.hoisted(() => ({
   tx: {
-    booking: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn() },
+    booking: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     seatHold: { findFirst: vi.fn(), update: vi.fn() },
-    seatClaim: { findUnique: vi.fn(), updateMany: vi.fn() },
+    seatClaim: { findUnique: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
   },
   transaction: vi.fn(),
 }));
@@ -97,3 +97,65 @@ describe('mock payment and booking confirmation', () => {
     expect(response.body.error.code).toBe('HOLD_NOT_FOUND');
   });
 });
+
+describe('customer booking cancellation (assignment bonus flow 8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-characters';
+    transaction.mockImplementation(async (callback: (transactionClient: typeof tx) => Promise<unknown>) => callback(tx));
+  });
+
+  it('requires authentication', async () => {
+    const response = await request(app).post('/api/bookings/booking-1/cancel');
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('cancels an owned confirmed booking and releases its booked seat claim atomically', async () => {
+    tx.booking.findUnique.mockResolvedValue({
+      ...booking,
+      status: 'CONFIRMED',
+      seats: [{ seatId: 'seat-1' }],
+      show: { startsAt: new Date(Date.now() + 4 * 60 * 60 * 1000) },
+    });
+    tx.booking.update.mockResolvedValue({ id: 'booking-1', status: 'CANCELLED' });
+    tx.seatClaim.deleteMany.mockResolvedValue({ count: 1 });
+
+    const response = await request(app).post('/api/bookings/booking-1/cancel').set('Authorization', `Bearer ${token()}`);
+    expect(response.status).toBe(200);
+    expect(response.body.booking).toEqual({ id: 'booking-1', status: 'CANCELLED' });
+    expect(tx.booking.update).toHaveBeenCalledWith({ where: { id: 'booking-1' }, data: { status: 'CANCELLED' } });
+    expect(tx.seatClaim.deleteMany).toHaveBeenCalledWith({
+      where: { showId: 'show-1', seatId: { in: ['seat-1'] }, userId, kind: 'BOOKED' },
+    });
+  });
+
+  it('does not reveal or cancel another customer\'s booking', async () => {
+    tx.booking.findUnique.mockResolvedValue({ ...booking, userId: 'other-customer', seats: [{ seatId: 'seat-1' }], show: { startsAt: new Date(Date.now() + 4 * 60 * 60 * 1000) } });
+    const response = await request(app).post('/api/bookings/booking-1/cancel').set('Authorization', `Bearer ${token()}`);
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('BOOKING_NOT_FOUND');
+    expect(tx.booking.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects cancellation within two hours of showtime', async () => {
+    tx.booking.findUnique.mockResolvedValue({ ...booking, status: 'CONFIRMED', seats: [{ seatId: 'seat-1' }], show: { startsAt: new Date(Date.now() + 90 * 60 * 1000) } });
+    const response = await request(app).post('/api/bookings/booking-1/cancel').set('Authorization', `Bearer ${token()}`);
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('CANCELLATION_WINDOW_CLOSED');
+    expect(tx.booking.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects past shows and already-cancelled bookings', async () => {
+    tx.booking.findUnique.mockResolvedValueOnce({ ...booking, status: 'CONFIRMED', seats: [{ seatId: 'seat-1' }], show: { startsAt: new Date(Date.now() - 60_000) } });
+    const past = await request(app).post('/api/bookings/booking-1/cancel').set('Authorization', `Bearer ${token()}`);
+    expect(past.status).toBe(409);
+    expect(past.body.error.code).toBe('CANCELLATION_WINDOW_CLOSED');
+
+    tx.booking.findUnique.mockResolvedValueOnce({ ...booking, status: 'CANCELLED', seats: [{ seatId: 'seat-1' }], show: { startsAt: new Date(Date.now() + 4 * 60 * 60 * 1000) } });
+    const repeated = await request(app).post('/api/bookings/booking-1/cancel').set('Authorization', `Bearer ${token()}`);
+    expect(repeated.status).toBe(409);
+    expect(repeated.body.error.code).toBe('BOOKING_NOT_CANCELLABLE');
+  });
+});
+
