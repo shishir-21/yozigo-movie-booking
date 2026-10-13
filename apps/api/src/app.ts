@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { authRouter } from './routes/auth.js';
 import { moviesRouter } from './routes/movies.js';
 import { seatsRouter } from './routes/seats.js';
+import { holdsRouter } from './routes/holds.js';
 
 export const app = express();
 
@@ -20,6 +21,7 @@ app.get('/api/health', (_request, response) => {
 app.use('/api/auth', authRouter);
 app.use('/api/movies', moviesRouter);
 app.use('/api/shows', seatsRouter);
+app.use('/api/shows', holdsRouter);
 
 app.use((_request, response) => {
   response.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
