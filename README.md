@@ -30,7 +30,9 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Customer-facing booking history page with loading, empty, and error states
 - [x] Admin movie/show management API and overlap validation
 - [x] Admin movie/show management frontend
-- [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically\n- [ ] Bonus Flows 9–10
+- [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically
+- [x] Bonus Flow 9: admin show reports, occupancy, collection totals, booking list, and seat map
+- [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
