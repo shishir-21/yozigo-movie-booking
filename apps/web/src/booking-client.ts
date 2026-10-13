@@ -46,3 +46,14 @@ export function confirmBooking(showId: string, holdId: string, token: string, mo
 export function getMyBookings(token: string): Promise<{ bookings: ConfirmedBooking[] }> {
   return bookingRequest<{ bookings: ConfirmedBooking[] }>('/api/bookings/me', token);
 }
+export interface BookingCancellation {
+  booking: { id: string; status: 'CANCELLED' };
+  message: string;
+}
+
+export function cancelBooking(bookingId: string, token: string): Promise<BookingCancellation> {
+  return bookingRequest<BookingCancellation>(`/api/bookings/${encodeURIComponent(bookingId)}/cancel`, token, {
+    method: 'POST',
+  });
+}
+

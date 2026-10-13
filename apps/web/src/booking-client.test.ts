@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { confirmBooking, getMyBookings } from './booking-client';
+import { cancelBooking, confirmBooking, getMyBookings } from './booking-client';
 
 describe('booking client', () => {
   beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
@@ -20,6 +20,16 @@ describe('booking client', () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ bookings: [] }), { status: 200 }));
     await expect(getMyBookings('token-123')).resolves.toEqual({ bookings: [] });
     expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bookings/me', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token-123' }) }));
+  });
+
+  it('cancels a booking using the authenticated cancellation endpoint', async () => {
+    const payload = { booking: { id: 'booking-1', status: 'CANCELLED' as const }, message: 'Booking cancelled. Your seats are available again.' };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await expect(cancelBooking('booking/1', 'token-123')).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bookings/booking%2F1/cancel', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer token-123' }),
+    }));
   });
 
   it('surfaces conflicts and network errors', async () => {
