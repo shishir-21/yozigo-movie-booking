@@ -3,6 +3,7 @@ import { ApiError, getCurrentUser, login, register, type AuthUser } from './auth
 import { formatPrice, formatShowDate, getMovies, type Movie } from './movie-client';
 import { getShowSeats, type ShowSeat } from './seat-client';
 import { createSeatHold, releaseSeatHold, type SeatHold } from './hold-client';
+import { confirmBooking } from './booking-client';
 
 const TOKEN_KEY = 'yozigo_access_token';
 
@@ -36,6 +37,8 @@ export default function App() {
   const [holdError, setHoldError] = useState<string | null>(null);
   const [holdBusy, setHoldBusy] = useState(false);
   const [seatReload, setSeatReload] = useState(0);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeHold) { setHoldSeconds(0); return; }
@@ -211,7 +214,7 @@ export default function App() {
             <p className="auth-intro">Choose an available seat to hold it for five minutes. You must be signed in.</p><div className="seat-screen">SCREEN</div>
             <div className="seat-legend"><span><i className="seat-key available" /> Available</span><span><i className="seat-key unavailable" /> Unavailable</span></div>
             {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => { const mine = activeHold?.seatId === seat.id; const unavailable = seat.status !== "AVAILABLE" && !mine; return <button key={seat.id} type="button" disabled={unavailable || holdBusy || (Boolean(activeHold) && !mine)} className={"seat-tile " + (mine ? "held" : unavailable ? "unavailable" : "available")} aria-label={"Row " + seat.row + ", seat " + seat.number + (mine ? ", held by you" : unavailable ? ", unavailable" : ", available")} onClick={async () => { setHoldError(null); if (!token || !user) { setHoldError("Please sign in before holding a seat."); openAuth("login"); return; } setHoldBusy(true); try { const result = await createSeatHold(selectedShowId, seat.id, token); setActiveHold(result.hold); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to hold this seat."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>{seat.row}{seat.number}</button>; })}</div>}
-            <p className="seat-footnote">A seat hold lasts five minutes and expires automatically.</p>{activeHold && <div className="hold-status" role="status"><span>Seat held · {Math.floor(holdSeconds / 60)}:{String(holdSeconds % 60).padStart(2, "0")} remaining</span><button type="button" disabled={holdBusy} onClick={async () => { if (!token) return; setHoldBusy(true); setHoldError(null); try { await releaseSeatHold(selectedShowId, activeHold.id, token); setActiveHold(null); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to release this hold."); } finally { setHoldBusy(false); } }}>Release seat</button></div>}{holdError && <p className="hold-error" role="alert">{holdError}</p>}
+            <p className="seat-footnote">A seat hold lasts five minutes and expires automatically.</p>{activeHold && <><div className="hold-status" role="status"><span>Seat held · {Math.floor(holdSeconds / 60)}:{String(holdSeconds % 60).padStart(2, "0")} remaining</span><button type="button" disabled={holdBusy || checkoutBusy} onClick={async () => { if (!token) return; setHoldBusy(true); setHoldError(null); try { await releaseSeatHold(selectedShowId, activeHold.id, token); setActiveHold(null); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to release this hold."); } finally { setHoldBusy(false); } }}>Release seat</button></div><button className="mock-checkout" type="button" disabled={checkoutBusy || holdSeconds === 0 || !token} onClick={async () => { if (!token) return; setCheckoutBusy(true); setHoldError(null); setBookingMessage(null); try { const result = await confirmBooking(selectedShowId, activeHold.id, token); setBookingMessage(`Booking confirmed: ${result.booking.movieTitle}, seat ${result.booking.seats.map((seat) => `${seat.row}${seat.number}`).join(", ")}. Demo payment only — no real money was charged.`); setActiveHold(null); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to confirm this booking."); setSeatReload((value) => value + 1); } finally { setCheckoutBusy(false); } }}>{checkoutBusy ? "Confirming demo booking…" : "Pay with demo payment"}</button><p className="field-hint">Demo only. No card details or real payment are collected.</p></>}{bookingMessage && <p className="booking-success" role="status">{bookingMessage}</p>}{holdError && <p className="hold-error" role="alert">{holdError}</p>}
           </section>
         </div>
       )}
