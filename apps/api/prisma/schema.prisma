@@ -129,18 +129,17 @@ model BookingSeat {
   @@index([showId, seatId])
 }
 
-
 model SeatClaim {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   showId    String
-  show      Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+  show      Show      @relation(fields: [showId], references: [id], onDelete: Cascade)
   seatId    String
-  seat      Seat     @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  seat      Seat      @relation(fields: [seatId], references: [id], onDelete: Restrict)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      ClaimKind
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@unique([showId, seatId])
   @@index([userId, kind, expiresAt])
