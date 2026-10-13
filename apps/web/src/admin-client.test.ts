@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './auth-client';
-import { createAdminMovie, deleteAdminShow, getAdminMovies, getAdminShowReport, getAdminShows, updateAdminShow } from './admin-client';
+import { createAdminMovie, deleteAdminShow, getAdminAnalytics, getAdminMovies, getAdminShowReport, getAdminShows, updateAdminShow } from './admin-client';
 
 describe('admin client', () => {
   beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
@@ -42,4 +42,15 @@ describe('admin client', () => {
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('offline'));
     await expect(getAdminMovies('token')).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('requests analytics with encoded date filters and the admin token', async () => {
+    const payload = { analytics: { from: '2026-10-01', to: '2026-10-31', showCount: 1, confirmedBookings: 2, seatsSold: 3, capacity: 80, moneyCollectedPaise: 75000, shows: [] } };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));
+    await expect(getAdminAnalytics('admin-token', { from: '2026-10-01', to: '2026-10-31' })).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/admin/analytics?from=2026-10-01&to=2026-10-31', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
+    }));
+  });
+
+
 });

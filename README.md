@@ -33,6 +33,7 @@ The project is being delivered in small, verifiable slices. Required Flows 1–7
 - [x] Bonus Flow 8: customer cancellation of confirmed bookings more than two hours before showtime; seats released atomically
 - [x] Bonus Flow 9: admin show reports, occupancy, collection totals, booking list, and seat map
 - [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
+- [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
@@ -200,3 +201,12 @@ Signed-in users whose database-backed role is `ADMIN` see the Admin entry in the
 - The frontend opens an `EventSource` while a show’s seat dialog is open. On each invalidation, it reloads the authoritative `GET /api/shows/:showId/seats` response and closes the stream when the dialog closes or the show changes. Browser EventSource reconnects automatically after a network interruption.
 - Hold creation/release, booking confirmation, and cancellation publish an immediate show-scoped invalidation. A five-second SSE sync signal also makes seat holds appear available shortly after expiry even if no other mutation occurs.
 - SSE is used because this feature sends updates from server to browser only; it does not require a bidirectional WebSocket. PostgreSQL transactions and unique seat claims remain the source of truth for booking concurrency; SSE only prompts clients to refresh availability.
+
+
+## Admin analytics
+
+- `GET /api/admin/analytics` requires an administrator bearer token and returns summary metrics plus show-by-show performance.
+- Optional `from=YYYY-MM-DD` and `to=YYYY-MM-DD` filters apply to show start dates; the end date is inclusive. Invalid dates or a reversed range return `400 VALIDATION_ERROR`.
+- Confirmed bookings alone count toward booking totals, seats sold, occupancy, and collection. Cancelled bookings are excluded. All currency values in the API remain in paise.
+- The Admin management Analytics tab shows the number of shows, confirmed bookings, seats sold versus capacity, mock-payment collection, and per-show occupancy. CSV export includes report rows and a summary; cells are escaped and spreadsheet-formula prefixes are neutralized.
+- Collection values are derived from the assignment's simulated checkout records. This feature does not connect to Razorpay, Stripe, or any real payment provider.
