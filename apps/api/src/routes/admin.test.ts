@@ -7,7 +7,8 @@ vi.mock('../lib/prisma.js', () => ({
     user: { findUnique: vi.fn() },
     movie: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     show: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-    booking: { findFirst: vi.fn() },
+    booking: { findFirst: vi.fn(), findMany: vi.fn() },
+    seat: { findMany: vi.fn() },
     seatClaim: { findFirst: vi.fn() },
   },
 }));
@@ -74,4 +75,56 @@ describe('admin movie and show management', () => {
     expect(response.body.error.code).toBe('RESOURCE_CONFLICT');
     expect(prisma.show.create).not.toHaveBeenCalled();
   });
+
+  it('returns occupancy, collected amount, bookings, and an 80-seat map for admins', async () => {
+    const startsAt = new Date(Date.now() + 24 * 60 * 60_000);
+    vi.mocked(prisma.show.findUnique).mockResolvedValue({
+      id: 'show-1', startsAt, pricePaise: 25000, movie: { title: 'Demo Movie', durationMin: 120 },
+    } as never);
+    vi.mocked(prisma.seat.findMany).mockResolvedValue([
+      { id: 'seat-a1', row: 'A', number: 1 },
+      { id: 'seat-a2', row: 'A', number: 2 },
+    ] as never);
+    vi.mocked(prisma.booking.findMany).mockResolvedValue([
+      {
+        id: 'booking-1', status: 'CONFIRMED', amountPaise: 25000, createdAt: new Date(),
+        user: { id: 'customer-1', name: 'Test Customer', email: 'customer@example.com' },
+        seats: [{ seatId: 'seat-a1', seat: { id: 'seat-a1', row: 'A', number: 1 } }],
+      },
+      {
+        id: 'booking-2', status: 'CANCELLED', amountPaise: 25000, createdAt: new Date(),
+        user: { id: 'customer-2', name: 'Cancelled Customer', email: 'cancelled@example.com' },
+        seats: [{ seatId: 'seat-a2', seat: { id: 'seat-a2', row: 'A', number: 2 } }],
+      },
+    ] as never);
+
+    const response = await request(app).get('/api/admin/shows/show-1/report').set('Authorization', `Bearer ${tokenFor(admin.id)}`);
+    expect(response.status).toBe(200);
+    expect(response.body.report).toMatchObject({
+      capacity: 2,
+      seatsBooked: 1,
+      percentageFull: 50,
+      moneyCollectedPaise: 25000,
+      seats: [{ id: 'seat-a1', status: 'BOOKED' }, { id: 'seat-a2', status: 'AVAILABLE' }],
+      bookings: [
+        { id: 'booking-1', status: 'CONFIRMED', customer: { email: 'customer@example.com' } },
+        { id: 'booking-2', status: 'CANCELLED', customer: { email: 'cancelled@example.com' } },
+      ],
+    });
+  });
+
+  it('rejects customer access to show reports', async () => {
+    const response = await request(app).get('/api/admin/shows/show-1/report').set('Authorization', `Bearer ${tokenFor(customer.id)}`);
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
+    expect(prisma.seat.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for an unknown show report', async () => {
+    vi.mocked(prisma.show.findUnique).mockResolvedValue(null);
+    const response = await request(app).get('/api/admin/shows/missing/report').set('Authorization', `Bearer ${tokenFor(admin.id)}`);
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('SHOW_NOT_FOUND');
+  });
+
 });
