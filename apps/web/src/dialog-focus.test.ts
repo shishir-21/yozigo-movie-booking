@@ -3,8 +3,8 @@ import { trapDialogFocus } from './dialog-focus';
 
 describe('trapDialogFocus', () => {
   it('focuses the first available control and wraps Tab from the last control', () => {
-    const first = { focus: vi.fn() };
-    const last = { focus: vi.fn() };
+    const first = { focus: vi.fn(), getAttribute: vi.fn(() => null) };
+    const last = { focus: vi.fn(), getAttribute: vi.fn(() => null) };
     let keydown: ((event: KeyboardEvent) => void) | undefined;
     const dialog = {
       querySelectorAll: vi.fn(() => [first, last]),
@@ -41,6 +41,7 @@ describe('trapDialogFocus', () => {
     const preventDefault = vi.fn();
     keydown?.({ key: 'Tab', shiftKey: false, preventDefault } as unknown as KeyboardEvent);
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(dialog.focus).toHaveBeenCalledOnce();
+    // The dialog receives focus on initialization and again when Tab is pressed.
+    expect(dialog.focus).toHaveBeenCalledTimes(2);
   });
 });
