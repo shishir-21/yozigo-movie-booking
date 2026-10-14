@@ -203,6 +203,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <a className="skip-link" href="#movies">Skip to movie catalogue</a>
       <nav className="navbar">
         <a className="brand" href="#top" aria-label="Yozigo home"><span className="brand-mark">y</span> yozigo<span className="brand-dot">.</span></a>
         <div className="nav-links"><a className="active" href="#movies">Movies</a><a href="#experiences">Experiences</a><a href="#about">About</a></div>
