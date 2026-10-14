@@ -135,3 +135,89 @@ authRouter.get('/me', async (request: Request, response: Response, next: NextFun
     next(error);
   }
 });
+
+
+const updateProfileSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(72),
+  newPassword: z.string().min(8).max(72),
+});
+
+async function authenticatedUserId(request: Request, response: Response, next: NextFunction): Promise<string | null> {
+  const authorization = request.get('authorization');
+  if (!authorization?.startsWith('Bearer ')) {
+    response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'A valid bearer token is required.' } });
+    return null;
+  }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    next(new Error('JWT_SECRET must be configured with at least 32 characters'));
+    return null;
+  }
+
+  try {
+    const payload = jwt.verify(authorization.slice('Bearer '.length), secret);
+    if (typeof payload !== 'object' || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+      throw new Error('Token subject is missing');
+    }
+    return payload.sub;
+  } catch {
+    response.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'The access token is invalid or expired.' } });
+    return null;
+  }
+}
+
+authRouter.patch('/me', async (request: Request, response: Response, next: NextFunction) => {
+  const userId = await authenticatedUserId(request, response, next);
+  if (!userId) return;
+
+  const parsed = updateProfileSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Name must contain 2 to 80 characters.' } });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { name: parsed.data.name },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    response.status(200).json({ user: publicUser(user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post('/me/password', async (request: Request, response: Response, next: NextFunction) => {
+  const userId = await authenticatedUserId(request, response, next);
+  if (!userId) return;
+
+  const parsed = changePasswordSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Provide your current password and a new password of 8 to 72 characters.' } });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
+    if (!user) {
+      response.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'The access token is invalid or expired.' } });
+      return;
+    }
+    if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) {
+      response.status(400).json({ error: { code: 'CURRENT_PASSWORD_INCORRECT', message: 'Your current password is incorrect.' } });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash }, select: { id: true } });
+    response.status(200).json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
