@@ -49,4 +49,11 @@ describe('booking client', () => {
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('network down'));
     await expect(confirmBooking('show-1', 'hold-1', 'token')).rejects.toMatchObject({ status: 0, code: 'NETWORK_ERROR' });
   });
+
+  it('reports an ambiguous checkout timeout with a stable client error code', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException('deadline exceeded', 'TimeoutError'));
+    await expect(confirmBooking('show-1', 'hold-1', 'token'))
+      .rejects.toMatchObject({ status: 0, code: 'REQUEST_TIMEOUT' });
+  });
+
 });
