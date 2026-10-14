@@ -288,3 +288,8 @@ Customers can select up to six available seats for one show. Each selected seat 
 ## Booking confirmation and ticket handoff
 
 After checkout, the confirmation panel shows the server-returned booking reference, movie, showtime, seats, and total. Customers can open **My bookings** to print their ticket or review/cancel an eligible booking, or return to browsing. Payment is simulated only; the confirmation explicitly states that no real money was charged.
+
+
+## Customer account settings
+
+Signed-in users can open **Account** from the navigation to update their display name or change their password. The authenticated API endpoints are `PATCH /api/auth/me` with `{ "name": "New Name" }` and `POST /api/auth/me/password` with `{ "currentPassword": "...", "newPassword": "..." }`. Names are trimmed and limited to 2–80 characters; new passwords must contain 8–72 characters and the current password must match. Email and role are read-only. Passwords are hashed with bcrypt and never returned by the API. Account settings do not change booking, ticket, or mock-payment behavior.
