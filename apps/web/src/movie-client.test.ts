@@ -32,18 +32,20 @@ describe('movie browsing API client', () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(payload));
 
     await expect(getMovies()).resolves.toEqual(payload);
-    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/movies', {
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/movies', expect.objectContaining({
       headers: { Accept: 'application/json' },
-    });
+      signal: expect.any(AbortSignal),
+    }));
   });
 
   it('loads shows for an encoded movie ID', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ shows: [] }));
 
     await expect(getMovieShows('movie/id')).resolves.toEqual({ shows: [] });
-    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/movies/movie%2Fid/shows', {
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/movies/movie%2Fid/shows', expect.objectContaining({
       headers: { Accept: 'application/json' },
-    });
+      signal: expect.any(AbortSignal),
+    }));
   });
 
   it('surfaces API errors and network failures', async () => {
