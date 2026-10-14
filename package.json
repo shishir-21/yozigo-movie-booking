@@ -14,6 +14,7 @@
     "build": "npm run build -w @yozigo/api && npm run build -w @yozigo/web",
     "test": "npm run test -w @yozigo/api && npx vitest run apps/web/src",
     "smoke": "node scripts/api-smoke-check.mjs",
+    "e2e:smoke": "node scripts/booking-lifecycle-e2e.mjs",
     "db:generate": "npm run db:generate -w @yozigo/api",
     "db:migrate": "npm run db:migrate -w @yozigo/api",
     "db:seed": "npm run db:seed -w @yozigo/api",

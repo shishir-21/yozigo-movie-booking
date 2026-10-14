@@ -14,7 +14,7 @@ A movie ticket booking application for the Yozigo Full-Stack Developer Intern as
 
 ## Development status
 
-The project is being delivered in small, verifiable slices. Required Flows 1–7 take priority over bonus Flows 8–10.
+The project is delivered in complete implementation stages with end-to-end regression coverage. Required Flows 1–7 take priority over bonus Flows 8–10.
 
 - [x] Initial monorepo, React page shell, API health endpoint
 - [x] Initial Prisma data model and idempotent 80-seat seed
@@ -259,6 +259,18 @@ npm run smoke
 ```
 
 The readiness check intentionally fails when PostgreSQL is unavailable. Start the database first; for deployed environments, verify the configured database connection and deployment logs if readiness returns `503 DATABASE_UNAVAILABLE`. The smoke script does not create data or exercise authenticated booking flows.
+
+## Booking lifecycle end-to-end regression
+
+Run the full-stack Compose demo first so the API and PostgreSQL are running and seeded. Then execute the dependency-free lifecycle suite:
+
+```powershell
+npm run e2e:smoke
+```
+
+The suite uses Node.js 22+'s built-in `fetch` and creates uniquely named test customers. It exercises movie/show browsing, seat availability, hold ownership and conflicts, declined mock payment, successful checkout, idempotent checkout retry, booking history, cross-user cancellation protection, owner cancellation, and seat/hold release. It uses the real API and database; it does not use mocked Prisma calls. The test reports each successful checkpoint and exits non-zero on failure without printing credentials or access tokens.
+
+To target another API instance, set `API_BASE_URL` before running the command. For example in PowerShell: `$env:API_BASE_URL = "http://localhost:4000"`. CI builds and starts `docker-compose.full.yml`, waits for the database readiness endpoint, runs this suite, and tears down the Compose stack even when a check fails. Checkout remains mock-only; no card data or real money is used.
 
 
 ## Full-stack Docker demo

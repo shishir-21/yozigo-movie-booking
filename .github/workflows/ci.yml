@@ -21,5 +21,30 @@ jobs:
       - run: npm run build
       - name: Validate full-stack Compose configuration
         run: docker compose -f docker-compose.full.yml config --quiet
-      - name: Build API and web container images
-        run: docker compose -f docker-compose.full.yml build api web
+      - name: Build full-stack Docker images
+        run: docker compose -f docker-compose.full.yml build
+      - name: Start full-stack services for lifecycle E2E
+        run: docker compose -f docker-compose.full.yml up -d
+      - name: Wait for API and database readiness
+        shell: bash
+        run: |
+          ready=0
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4000/api/health/ready >/dev/null; then
+              ready=1
+              echo "API and database are ready."
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose -f docker-compose.full.yml logs --no-color
+            exit 1
+          fi
+      - name: Run booking lifecycle E2E against PostgreSQL
+        run: npm run e2e:smoke
+        env:
+          API_BASE_URL: http://localhost:4000
+      - name: Stop full-stack services
+        if: always()
+        run: docker compose -f docker-compose.full.yml down --volumes --remove-orphans
