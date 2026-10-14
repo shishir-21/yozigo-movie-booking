@@ -375,3 +375,8 @@ The catalogue has a **Refresh films** action. While it reloads, the last loaded 
 The showtime picker includes a **Refresh showtimes** action. While a refresh is in progress, previously loaded options remain visible and selectable. If refresh fails, the picker announces the failure and offers a retry without replacing the existing options. Initial-load failures remain distinct and offer their own retry action; the empty state is shown only after a successful response with no upcoming shows. Opening a different movie resets the picker so options from the previous movie are never shown for the new selection.
 
 Verify this behavior with `npm test`, `npm run lint`, `npm run build`, `npm run e2e:smoke`, and `npm run e2e:ops`. Also open two different movie showtime pickers, refresh after a successful load, and simulate an API/network failure to confirm the previous options remain visible. Payment stays simulated; do not enter real card details.
+
+
+## Seat availability refresh and recovery
+
+The seat picker provides a **Refresh seats** action even when live seat events are connected. While refreshing, it keeps the last successful seat map visible. If a refresh fails, it warns that the displayed availability may be stale and offers a retry instead of replacing the map with an error-only screen. Initial-load errors remain distinct, and switching shows never presents the previous show's map as current. Seat holds and checkout are still validated by the API and database; the client-side map is not authoritative. See [the seat refresh recovery guide](docs/seat-refresh-recovery.md) for local verification steps. Payment remains mock-only.
