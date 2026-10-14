@@ -283,3 +283,8 @@ The public catalogue supports case-insensitive title search, filtering by the la
 ## Multi-seat booking
 
 Customers can select up to six available seats for one show. Each selected seat is held for five minutes, and checkout confirms all selected seats in one serializable database transaction. The total is calculated server-side as the show's price in paise multiplied by the number of seats. The API accepts the legacy `holdId` field for a single seat and `holdIds` for a multi-seat checkout. If any hold is missing, expired, or no longer owns its unique seat claim, the entire checkout rolls back. Payment remains simulated; no card details are collected and no real money is charged.
+
+
+## Booking confirmation and ticket handoff
+
+After checkout, the confirmation panel shows the server-returned booking reference, movie, showtime, seats, and total. Customers can open **My bookings** to print their ticket or review/cancel an eligible booking, or return to browsing. Payment is simulated only; the confirmation explicitly states that no real money was charged.
