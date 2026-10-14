@@ -31,7 +31,7 @@ liveSeatsRouter.get('/:showId/seat-events', async (request: Request, response: R
     // The UI also needs to notice holds expiring without a mutation request.
     const syncInterval = setInterval(sendInvalidation, 5000);
     const heartbeat = setInterval(() => response.write(': keep-alive\n\n'), 15000);
-    request.on('close', () => {
+    response.on('close', () => {
       clearInterval(syncInterval);
       clearInterval(heartbeat);
       unsubscribe();
