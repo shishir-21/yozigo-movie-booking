@@ -227,3 +227,32 @@
 .checkout-recovery p{margin:0}
 .checkout-recovery button{justify-self:start;border:1px solid #f5bd64;background:transparent;color:#f5d5a3;border-radius:3px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer}
 .checkout-recovery button:hover{background:#f5bd6414}
+
+
+/* Showtime refresh recovery */
+.showtime-refresh-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.showtime-refresh-toolbar .auth-intro { margin: 0; }
+
+.showtime-refresh-button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line, currentColor);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.showtime-refresh-button:disabled { cursor: wait; opacity: 0.65; }
+
+@media (max-width: 520px) {
+  .showtime-refresh-toolbar { align-items: flex-start; flex-direction: column; }
+}
