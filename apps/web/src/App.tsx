@@ -10,6 +10,7 @@ import { getCheckoutRecoveryMessage } from './checkout-recovery';
 import { seatEventConnectionLabel, type SeatEventConnectionState } from './seat-events';
 import { getCatalogueRequestOutcome } from './catalogue-refresh';
 import { getShowtimeRequestOutcome } from './showtime-refresh';
+import { getSeatRequestOutcome } from './seat-refresh';
 import BookingHistory from './BookingHistory';
 import AdminManagement from './AdminManagement';
 import AccountSettings from './AccountSettings';
@@ -54,7 +55,11 @@ export default function App() {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
   const [showSeats, setShowSeats] = useState<ShowSeat[]>([]);
   const [seatsLoading, setSeatsLoading] = useState(false);
+  const [seatsRefreshing, setSeatsRefreshing] = useState(false);
+  const [seatsHasLoaded, setSeatsHasLoaded] = useState(false);
+  const [seatsLoadedForShowId, setSeatsLoadedForShowId] = useState<string | null>(null);
   const [seatsError, setSeatsError] = useState<string | null>(null);
+  const [seatsRefreshError, setSeatsRefreshError] = useState<string | null>(null);
   const [activeHolds, setActiveHolds] = useState<SeatHold[]>([]);
   const [selectedShowPricePaise, setSelectedShowPricePaise] = useState(0);
   const [holdSeconds, setHoldSeconds] = useState(0);
@@ -68,6 +73,14 @@ export default function App() {
   const [bookingHistoryOpen, setBookingHistoryOpen] = useState(false);
   const [adminManagementOpen, setAdminManagementOpen] = useState(false);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const seatsOutcome = getSeatRequestOutcome({
+    hasLoaded: seatsHasLoaded && seatsLoadedForShowId === selectedShowId,
+    loading: seatsLoading,
+    refreshing: seatsRefreshing,
+    initialError: seatsError,
+    refreshError: seatsRefreshError,
+    seatCount: seatsLoadedForShowId === selectedShowId ? showSeats.length : 0,
+  });
   const showtimesOutcome = getShowtimeRequestOutcome({
     hasLoaded: showtimesHasLoaded,
     loading: showtimesLoading,
@@ -207,14 +220,42 @@ export default function App() {
   }, [showtimeMovieId, showtimesReload]);
 
   useEffect(() => {
-    if (!selectedShowId) return;
+    if (!selectedShowId) {
+      setSeatsLoading(false);
+      setSeatsRefreshing(false);
+      setSeatsError(null);
+      setSeatsRefreshError(null);
+      return;
+    }
     let active = true;
-    setSeatsLoading(true);
-    setSeatsError(null);
+    const alreadyLoaded = seatsHasLoaded && seatsLoadedForShowId === selectedShowId;
+    if (alreadyLoaded) {
+      setSeatsRefreshing(true);
+      setSeatsRefreshError(null);
+    } else {
+      setSeatsLoading(true);
+      setSeatsError(null);
+    }
     getShowSeats(selectedShowId)
-      .then(({ seats }) => { if (active) setShowSeats(seats); })
-      .catch((error: unknown) => { if (active) setSeatsError(error instanceof Error ? error.message : 'Unable to load seat availability.'); })
-      .finally(() => { if (active) setSeatsLoading(false); });
+      .then(({ seats }) => {
+        if (!active) return;
+        setShowSeats(seats);
+        setSeatsHasLoaded(true);
+        setSeatsLoadedForShowId(selectedShowId);
+        setSeatsError(null);
+        setSeatsRefreshError(null);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'Unable to load seat availability.';
+        if (seatsHasLoaded && seatsLoadedForShowId === selectedShowId) setSeatsRefreshError(message);
+        else setSeatsError(message);
+      })
+      .finally(() => {
+        if (!active) return;
+        setSeatsLoading(false);
+        setSeatsRefreshing(false);
+      });
     return () => { active = false; };
   }, [selectedShowId, seatReload]);
 
@@ -396,13 +437,17 @@ export default function App() {
             <button className="auth-close" type="button" aria-label="Close seat map" onClick={() => setSelectedShowId(null)}>×</button>
             <span className="section-kicker">CHOOSE YOUR VIEW</span><h2 id="seat-dialog-title">Seat availability.</h2>
             <p className="auth-intro">Select up to six available seats. Each seat is held for five minutes; you must be signed in.</p>
-            <div className="seat-live-status" role="status" aria-live="polite">
-              <span>{seatEventConnectionLabel(seatEventsState)}</span>
-              {seatEventsState !== 'connected' && <button type="button" className="seat-refresh-button" onClick={() => setSeatReload((value) => value + 1)} disabled={seatsLoading}>{seatsLoading ? 'Refreshing seats…' : 'Refresh seats'}</button>}
+            <div className="seat-live-status">
+              <span role="status" aria-live="polite">{seatEventConnectionLabel(seatEventsState)}</span>
+              <button type="button" className="seat-refresh-button" onClick={() => setSeatReload((value) => value + 1)} disabled={seatsLoading || seatsRefreshing}>
+                {seatsRefreshing ? 'Refreshing seats…' : 'Refresh seats'}
+              </button>
             </div>
+            {seatsOutcome === 'refreshing' && <p className="catalogue-refresh-status" role="status" aria-live="polite">Refreshing availability. Your current seat map remains visible.</p>}
+            {seatsOutcome === 'refresh-error' && <div className="catalogue-state catalogue-error" role="alert"><p>We couldn’t refresh seat availability. The map below is from the last successful response; seat status may have changed. {seatsRefreshError}</p><button type="button" onClick={() => { setSeatsRefreshError(null); setSeatReload((value) => value + 1); }}>Try again</button></div>}
             <div className="seat-screen">SCREEN</div>
             <div className="seat-legend"><span><i className="seat-key available" /> Available</span><span><i className="seat-key unavailable" /> Unavailable</span></div>
-            {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => { const mine = activeHolds.some((hold) => hold.seatId === seat.id); const unavailable = seat.status !== "AVAILABLE" && !mine; return <button key={seat.id} type="button" disabled={unavailable || holdBusy || (activeHolds.length >= 6 && !mine)} className={"seat-tile " + (mine ? "held" : unavailable ? "unavailable" : "available")} aria-label={"Row " + seat.row + ", seat " + seat.number + (mine ? ", selected by you" : unavailable ? ", unavailable" : ", available")} onClick={async () => { setHoldError(null); if (!token || !user) { setHoldError("Please sign in before selecting seats."); openAuth("login"); return; } setHoldBusy(true); try { if (mine) { const existing = activeHolds.find((hold) => hold.seatId === seat.id); if (existing) { await releaseSeatHold(selectedShowId, existing.id, token); setActiveHolds((current) => current.filter((hold) => hold.id !== existing.id)); } } else { const result = await createSeatHold(selectedShowId, seat.id, token); setActiveHolds((current) => current.length < 6 ? [...current, result.hold] : current); } setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to update this seat selection."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>{seat.row}{seat.number}</button>; })}</div>}
+            {seatsOutcome === 'initial-loading' ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsOutcome === 'initial-error' ? <div className="form-error" role="alert"><p>{seatsError}</p><button type="button" className="seat-refresh-button" onClick={() => { setSeatsError(null); setSeatReload((value) => value + 1); }}>Try again</button></div> : seatsOutcome === 'empty' ? <p className="catalogue-state">No seat availability was returned for this show. Please refresh to try again.</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => { const mine = activeHolds.some((hold) => hold.seatId === seat.id); const unavailable = seat.status !== "AVAILABLE" && !mine; return <button key={seat.id} type="button" disabled={unavailable || holdBusy || seatsRefreshing || (activeHolds.length >= 6 && !mine)} className={"seat-tile " + (mine ? "held" : unavailable ? "unavailable" : "available")} aria-label={"Row " + seat.row + ", seat " + seat.number + (mine ? ", selected by you" : unavailable ? ", unavailable" : ", available")} onClick={async () => { setHoldError(null); if (!token || !user) { setHoldError("Please sign in before selecting seats."); openAuth("login"); return; } setHoldBusy(true); try { if (mine) { const existing = activeHolds.find((hold) => hold.seatId === seat.id); if (existing) { await releaseSeatHold(selectedShowId, existing.id, token); setActiveHolds((current) => current.filter((hold) => hold.id !== existing.id)); } } else { const result = await createSeatHold(selectedShowId, seat.id, token); setActiveHolds((current) => current.length < 6 ? [...current, result.hold] : current); } setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to update this seat selection."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>{seat.row}{seat.number}</button>; })}</div>}
             <p className="seat-footnote">A seat hold lasts five minutes and expires automatically.</p>{activeHolds.length > 0 && <><div className="selected-seat-summary" role="status"><span>{activeHolds.length} seat{activeHolds.length === 1 ? '' : 's'} selected: {activeHolds.map((hold) => { const seat = showSeats.find((item) => item.id === hold.seatId); return seat ? seat.row + seat.number : hold.seatId; }).join(', ')}</span><strong>{formatPrice(selectedShowPricePaise * activeHolds.length)}</strong><small>Hold expires in {Math.floor(holdSeconds / 60)}:{String(holdSeconds % 60).padStart(2, "0")}. Maximum 6 seats per booking.</small></div><div className="hold-status"><span>{activeHolds.length} seat{activeHolds.length === 1 ? '' : 's'} held</span><button type="button" disabled={holdBusy || checkoutBusy} onClick={async () => { if (!token) return; setHoldBusy(true); setHoldError(null); try { await Promise.all(activeHolds.map((hold) => releaseSeatHold(selectedShowId, hold.id, token))); setActiveHolds([]); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to release selected seats."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>Release selected seats</button></div><button className="mock-checkout" type="button" disabled={checkoutBusy || holdSeconds === 0 || !token} onClick={async () => { if (!token) return; setCheckoutBusy(true); setHoldError(null); setCheckoutRecoveryMessage(null); setBookingConfirmation(null); try { const result = await confirmBooking(selectedShowId, activeHolds.map((hold) => hold.id), token); setBookingConfirmation(result); setActiveHolds([]); setSeatReload((value) => value + 1); } catch (error) { const recoveryMessage = getCheckoutRecoveryMessage(error); if (recoveryMessage) { setCheckoutRecoveryMessage(recoveryMessage); } else { setHoldError(error instanceof Error ? error.message : "Unable to confirm this booking."); } setSeatReload((value) => value + 1); } finally { setCheckoutBusy(false); } }}>{checkoutBusy ? "Confirming demo booking…" : `Confirm ${activeHolds.length} seat${activeHolds.length === 1 ? '' : 's'} with demo payment`}</button><p className="field-hint">Demo only. No card details or real payment are collected.</p></>}{bookingConfirmation && (() => {
               const confirmationView = getBookingConfirmationView(bookingConfirmation);
               return (
