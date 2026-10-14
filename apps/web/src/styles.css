@@ -134,3 +134,14 @@
 .showtime-option:hover .showtime-cta{color:var(--accent)}
 .seat-map-button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:560px){.showtime-dialog{padding:29px 17px}.showtime-dialog h2{font-size:26px}.showtime-option{padding:13px}}
+
+/* Customer booking history filters */
+.booking-history-filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding-bottom:15px;border-bottom:1px solid #ffffff17}
+.booking-history-filters button{display:inline-flex;align-items:center;gap:9px;border:1px solid #ffffff24;border-radius:22px;background:transparent;color:#aaa9b0;padding:9px 12px;font:inherit;font-size:10px;cursor:pointer}
+.booking-history-filters button.selected{border-color:#d5fd7170;background:#d5fd7110;color:var(--accent)}
+.booking-history-filters button span{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:12px;background:#ffffff12;font-size:9px}
+.booking-history-filters button.selected span{background:#d5fd7120}
+.booking-filter-empty{padding:28px 18px;text-align:center;border:1px dashed #ffffff2b;background:#0d0f14}
+.booking-filter-empty h3{margin:0 0 8px;font-size:14px;font-weight:500}
+.booking-filter-empty p{margin:0;color:#9a99a1;font-size:11px;line-height:1.6}
+

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError } from './auth-client';
 import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-client';
 import './booking-ticket.css';
+import { filterBookings, type BookingHistoryFilter } from './booking-history-filter';
 
 interface BookingHistoryProps {
   token: string;
@@ -38,6 +39,14 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [printingBookingId, setPrintingBookingId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<BookingHistoryFilter>('ALL');
+  const filterOptions: Array<{ value: BookingHistoryFilter; label: string }> = [
+    { value: 'ALL', label: 'All bookings' },
+    { value: 'UPCOMING', label: 'Upcoming' },
+    { value: 'PAST', label: 'Past shows' },
+    { value: 'CANCELLED', label: 'Cancelled' },
+  ];
+  const visibleBookings = filterBookings(bookings, activeFilter);
 
   useEffect(() => {
     let active = true;
@@ -115,8 +124,31 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
             <button type="button" className="auth-submit" onClick={onClose}>Explore movies</button>
           </div>
         ) : (
+          <>
+            <div className="booking-history-filters" role="group" aria-label="Filter bookings">
+              {filterOptions.map((option) => {
+                const count = filterBookings(bookings, option.value).length;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={activeFilter === option.value ? 'selected' : ''}
+                    aria-pressed={activeFilter === option.value}
+                    onClick={() => setActiveFilter(option.value)}
+                  >
+                    {option.label}<span>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {visibleBookings.length === 0 ? (
+              <div className="booking-filter-empty" role="status">
+                <h3>No {activeFilter === 'UPCOMING' ? 'upcoming shows' : activeFilter === 'PAST' ? 'past shows' : 'cancelled bookings'} found</h3>
+                <p>Try another filter to see your bookings.</p>
+              </div>
+            ) : (
           <div className="booking-list">
-            {bookings.map((booking) => (
+            {visibleBookings.map((booking) => (
               <article className={`booking-card${printingBookingId === booking.id ? " booking-card-printing" : ""}`} key={booking.id}>
                 <div className="booking-card-heading">
                   <div>
@@ -148,6 +180,8 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
               </article>
             ))}
           </div>
+            )}
+          </>
         )}
       </section>
     </div>
