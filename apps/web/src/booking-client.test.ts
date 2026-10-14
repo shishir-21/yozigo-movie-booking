@@ -16,6 +16,16 @@ describe('booking client', () => {
     }));
   });
 
+  it('sends multiple hold IDs for a single checkout', async () => {
+    const payload = { booking: { id: 'booking-2', showId: 'show-1', movieTitle: 'Demo', amountPaise: 50000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', startsAt: '2026-10-20T18:30:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }, { id: 'seat-2', row: 'A', number: 2 }] }, payment: { mode: 'MOCK' as const, status: 'SUCCEEDED' as const, message: 'Demo payment only. No real money was charged.' }, alreadyConfirmed: false };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 201 }));
+    await expect(confirmBooking('show-1', ['hold-1', 'hold-2'], 'token-123')).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/shows/show-1/bookings', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ holdIds: ['hold-1', 'hold-2'], mockPaymentResult: 'SUCCESS' }),
+    }));
+  });
+
   it('loads customer booking history including the actual showtime', async () => {
     const payload = { bookings: [{ id: 'booking-1', showId: 'show-1', movieTitle: 'Demo', amountPaise: 25000, status: 'CONFIRMED' as const, createdAt: '2026-10-14T10:00:00.000Z', startsAt: '2026-10-20T18:30:00.000Z', seats: [{ id: 'seat-1', row: 'A', number: 1 }] }] };
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));

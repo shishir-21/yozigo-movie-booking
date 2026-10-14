@@ -278,3 +278,8 @@ Each movie card shows the next upcoming screening and offers **Choose showtime**
 ## Movie catalogue search and filters
 
 The public catalogue supports case-insensitive title search, filtering by the languages present in the loaded catalogue, and sorting by featured order, title (A–Z), or next showtime. Search and language filters can be combined. If no films match, use **Clear filters** to return to the full catalogue. These controls work on the loaded catalogue and do not add API requests.
+
+
+## Multi-seat booking
+
+Customers can select up to six available seats for one show. Each selected seat is held for five minutes, and checkout confirms all selected seats in one serializable database transaction. The total is calculated server-side as the show's price in paise multiplied by the number of seats. The API accepts the legacy `holdId` field for a single seat and `holdIds` for a multi-seat checkout. If any hold is missing, expired, or no longer owns its unique seat claim, the entire checkout rolls back. Payment remains simulated; no card details are collected and no real money is charged.

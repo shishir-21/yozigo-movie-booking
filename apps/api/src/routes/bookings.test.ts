@@ -72,6 +72,35 @@ describe('mock payment and booking confirmation', () => {
     expect(tx.seatClaim.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { kind: 'BOOKED', expiresAt: null } }));
   });
 
+  it('confirms up to six held seats in one booking and calculates the total', async () => {
+    tx.seatHold.findMany.mockResolvedValue([
+      { id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: future, status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } },
+      { id: 'hold-2', showId: 'show-1', seatId: 'seat-2', userId, expiresAt: future, status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } },
+    ]);
+    tx.seatClaim.findUnique.mockResolvedValue({ id: 'claim-1', userId, kind: 'HOLD', expiresAt: future });
+    tx.booking.create.mockResolvedValue({ ...booking, amountPaise: 50000, seats: [
+      { seatId: 'seat-1', seat: { row: 'A', number: 1 } },
+      { seatId: 'seat-2', seat: { row: 'A', number: 2 } },
+    ] });
+    tx.seatClaim.updateMany.mockResolvedValue({ count: 1 });
+    tx.seatHold.updateMany.mockResolvedValue({ count: 2 });
+
+    const response = await request(app).post('/api/shows/show-1/bookings')
+      .set('Authorization', `Bearer ${token()}`).send({ holdIds: ['hold-1', 'hold-2'] });
+
+    expect(response.status).toBe(201);
+    expect(response.body.booking.amountPaise).toBe(50000);
+    expect(response.body.booking.seats).toHaveLength(2);
+    expect(tx.booking.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ amountPaise: 50000, seats: { create: [
+        { seatId: 'seat-1', showId: 'show-1' }, { seatId: 'seat-2', showId: 'show-1' },
+      ] } }),
+    }));
+    expect(tx.seatHold.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: { status: 'CONVERTED', bookingId: 'booking-1' },
+    }));
+  });
+
   it('rejects expired holds', async () => {
     tx.booking.findUnique.mockResolvedValue(null);
     tx.seatHold.findFirst.mockResolvedValue({ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: new Date(Date.now() - 1000), status: 'ACTIVE', show: { id: 'show-1', startsAt: future, pricePaise: 25000 } });

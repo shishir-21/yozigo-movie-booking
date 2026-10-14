@@ -7,10 +7,6 @@ import { publishSeatMapInvalidation } from '../lib/seat-events.js';
 
 export const bookingsRouter = Router();
 const idSchema = z.string().trim().min(1).max(64);
-const checkoutSchema = z.object({
-  holdId: idSchema,
-  mockPaymentResult: z.enum(['SUCCESS', 'DECLINED']).default('SUCCESS'),
-});
 
 function authenticatedUserId(request: Request): string | null {
   const header = request.get('authorization');
