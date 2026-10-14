@@ -305,3 +305,13 @@ After checkout, the confirmation panel shows the server-returned booking referen
 ## Customer account settings
 
 Signed-in users can open **Account** from the navigation to update their display name or change their password. The authenticated API endpoints are `PATCH /api/auth/me` with `{ "name": "New Name" }` and `POST /api/auth/me/password` with `{ "currentPassword": "...", "newPassword": "..." }`. Names are trimmed and limited to 2–80 characters; new passwords must contain 8–72 characters and the current password must match. Email and role are read-only. Passwords are hashed with bcrypt and never returned by the API. Account settings do not change booking, ticket, or mock-payment behavior.
+
+
+## Automated dependency and code security checks
+
+- Dependabot checks npm workspace dependencies and GitHub Actions references weekly and opens update pull requests when updates are available.
+- The CodeQL workflow analyzes JavaScript/TypeScript on pull requests to `main`, pushes to `main`, and weekly on a schedule.
+- CodeQL uses GitHub's security-events permission to publish analysis results. The workflow declares minimal read permissions for repository contents and Actions.
+- Review Dependabot update PRs through the same CI process as application changes; do not merge dependency updates until required checks pass.
+- CodeQL results are available in the repository's **Security → Code scanning** area when code scanning is available/enabled for the repository. Repository settings and plan availability can affect whether findings appear there.
+- These automated checks complement, but do not replace, dependency review, manual security review, secret management, and production hardening.
