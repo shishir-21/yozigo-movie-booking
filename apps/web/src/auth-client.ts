@@ -69,3 +69,19 @@ export function getCurrentUser(token: string): Promise<{ user: AuthUser }> {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+export function updateProfile(token: string, input: { name: string }): Promise<{ user: AuthUser }> {
+  return request<{ user: AuthUser }>('/api/auth/me', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function changePassword(token: string, input: { currentPassword: string; newPassword: string }): Promise<{ message: string }> {
+  return request<{ message: string }>('/api/auth/me/password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
