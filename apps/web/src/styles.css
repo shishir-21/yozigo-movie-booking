@@ -179,4 +179,4 @@
 .account-form h3,.auth-form h3{font-size:13px;font-weight:600;margin:8px 0 2px}
 .account-password-form{margin-top:25px;padding-top:22px;border-top:1px solid #ffffff19}
 .account-success{padding:10px 12px;border:1px solid #d5fd7140;background:#d5fd710d;color:var(--accent);font-size:12px;border-radius:4px}
-@media(max-width:760px){.account-settings-nav{display:none}.account-dialog{padding:34px 22px 25px}.account-readonly{grid-template-columns:1fr;gap:5px}.account-readonly strong{margin-bottom:8px}}
+@media(max-width:760px){.account-settings-nav{display:inline-flex;font-size:9px;padding:8px}.account-dialog{padding:34px 22px 25px}.account-readonly{grid-template-columns:1fr;gap:5px}.account-readonly strong{margin-bottom:8px}}
