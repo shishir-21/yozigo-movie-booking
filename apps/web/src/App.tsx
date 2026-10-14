@@ -8,6 +8,7 @@ import { confirmBooking, type BookingConfirmation } from './booking-client';
 import { getBookingConfirmationView } from './booking-confirmation';
 import BookingHistory from './BookingHistory';
 import AdminManagement from './AdminManagement';
+import AccountSettings from './AccountSettings';
 
 const TOKEN_KEY = 'yozigo_access_token';
 
@@ -54,6 +55,7 @@ export default function App() {
   const [bookingConfirmation, setBookingConfirmation] = useState<BookingConfirmation | null>(null);
   const [bookingHistoryOpen, setBookingHistoryOpen] = useState(false);
   const [adminManagementOpen, setAdminManagementOpen] = useState(false);
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
   const visibleMovies = filterMovies(movies, { query: movieSearch, language: movieLanguage, sort: movieSort });
   const availableLanguages = [...new Set(movies.map((movie) => movie.language.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
@@ -209,6 +211,7 @@ export default function App() {
             <>
               <button className="signin booking-history-nav" type="button" onClick={() => setBookingHistoryOpen(true)}>My bookings</button>
               {user.role === 'ADMIN' && <button className="signin admin-nav" type="button" onClick={() => setAdminManagementOpen(true)}>Admin</button>}
+              <button className="signin account-settings-nav" type="button" onClick={() => setAccountSettingsOpen(true)}>Account</button>
               <span className="user-greeting">Hi, {user.name}</span>
               <span className="avatar" aria-label={`Signed in as ${user.name}`}>{initials(user.name) || 'Y'}</span>
               <button className="signin signout" type="button" onClick={signOut}>Sign out</button>
@@ -265,6 +268,7 @@ export default function App() {
 
       {bookingHistoryOpen && token && <BookingHistory token={token} onClose={() => setBookingHistoryOpen(false)} />}
       {adminManagementOpen && token && user?.role === 'ADMIN' && <AdminManagement token={token} onClose={() => setAdminManagementOpen(false)} />}
+      {accountSettingsOpen && token && user && <AccountSettings token={token} user={user} onClose={() => setAccountSettingsOpen(false)} onUserUpdated={(updatedUser) => setUser(updatedUser)} />}
 
       {showtimeMovieId && (
         <div className="auth-backdrop showtime-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowtimeMovieId(null); }}>
