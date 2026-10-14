@@ -220,3 +220,10 @@
   :where(a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])):focus-visible{outline:2px solid Highlight}
   .skip-link{border-color:CanvasText;background:Canvas;color:CanvasText}
 }
+
+
+/* Safe recovery when checkout outcome is unknown */
+.checkout-recovery{display:grid;gap:12px;margin:12px 0;padding:14px;border:1px solid #f5bd6466;border-radius:4px;background:#f5bd640c;color:#f5d5a3;font-size:11px;line-height:1.65}
+.checkout-recovery p{margin:0}
+.checkout-recovery button{justify-self:start;border:1px solid #f5bd64;background:transparent;color:#f5d5a3;border-radius:3px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer}
+.checkout-recovery button:hover{background:#f5bd6414}
