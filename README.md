@@ -363,3 +363,8 @@ The browser API clients use a 15-second request timeout so a stalled connection 
 ## Accessible cancellation confirmation
 
 The My bookings page confirms cancellations in an in-app accessible dialog showing the booking reference, movie, and showtime. Customers can keep the booking or explicitly confirm cancellation; Escape dismisses the dialog without sending a request. The API remains authoritative for the two-hour cutoff. See [the cancellation confirmation guide](docs/accessible-cancellation-confirmation.md) for the local verification checklist. Payment remains mock-only.
+
+
+## Movie catalogue refresh and recovery
+
+The catalogue has a **Refresh films** action. While it reloads, the last loaded film cards remain visible and current search/filter/sort selections are preserved. If refresh fails, the page shows an accessible warning and retry action without replacing the existing list with an error-only or empty state. Initial-load errors remain separate. See [the catalogue refresh guide](docs/movie-catalogue-refresh.md) for the manual recovery checklist.
