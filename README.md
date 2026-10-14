@@ -358,3 +358,8 @@ Before release, verify keyboard-only navigation through sign-in, showtime select
 ## Web API request timeout behavior
 
 The browser API clients use a 15-second request timeout so a stalled connection cannot leave a request pending indefinitely. Timed-out requests surface the stable client error code `REQUEST_TIMEOUT` and a retry-friendly message; connection failures retain `NETWORK_ERROR`, while HTTP status codes and server error codes are preserved. The auth client accepts an explicit caller-provided `AbortSignal` when needed. This is a client-side wait limit only: for booking checkout, a timeout does not prove that the server failed to complete the request. The checkout endpoint remains idempotent, so refresh booking history before retrying an ambiguous checkout. Payment remains simulated only.
+
+
+## Accessible cancellation confirmation
+
+The My bookings page confirms cancellations in an in-app accessible dialog showing the booking reference, movie, and showtime. Customers can keep the booking or explicitly confirm cancellation; Escape dismisses the dialog without sending a request. The API remains authoritative for the two-hour cutoff. See [the cancellation confirmation guide](docs/accessible-cancellation-confirmation.md) for the local verification checklist. Payment remains mock-only.
