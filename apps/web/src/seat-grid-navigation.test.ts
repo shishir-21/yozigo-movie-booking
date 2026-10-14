@@ -20,7 +20,8 @@ describe('seat grid keyboard navigation', () => {
 
   it('moves up or down to the closest numbered seat in an adjacent row', () => {
     expect(getSeatGridNavigationTarget(seats, 'a4', 'ArrowDown')).toBe('b3');
-    expect(getSeatGridNavigationTarget(seats, 'b3', 'ArrowUp')).toBe('a4');
+    // a2 and a4 are equally close to b3; ties intentionally prefer the lower seat number.
+    expect(getSeatGridNavigationTarget(seats, 'b3', 'ArrowUp')).toBe('a2');
     expect(getSeatGridNavigationTarget(seats, 'b3', 'ArrowDown')).toBe('c2');
   });
 
