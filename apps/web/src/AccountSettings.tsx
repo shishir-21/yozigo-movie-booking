@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError, changePassword, updateProfile, type AuthUser } from './auth-client';
+import { isValidNewPassword, normalizeProfileName, passwordsMatch } from './account-settings';
 
 interface AccountSettingsProps {
   token: string;
@@ -24,7 +25,7 @@ export default function AccountSettings({ token, user, onClose, onUserUpdated }:
     setMessage(null);
     setSavingProfile(true);
     try {
-      const result = await updateProfile(token, { name: name.trim() });
+      const result = await updateProfile(token, { name: normalizeProfileName(name) });
       onUserUpdated(result.user);
       setName(result.user.name);
       setMessage('Your profile has been updated.');
@@ -39,8 +40,12 @@ export default function AccountSettings({ token, user, onClose, onUserUpdated }:
     event.preventDefault();
     setError(null);
     setMessage(null);
-    if (newPassword !== confirmPassword) {
+    if (!passwordsMatch(newPassword, confirmPassword)) {
       setError('The new password and confirmation do not match.');
+      return;
+    }
+    if (!isValidNewPassword(newPassword)) {
+      setError('Use a new password between 8 and 72 characters.');
       return;
     }
     setSavingPassword(true);
