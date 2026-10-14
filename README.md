@@ -137,6 +137,18 @@ GitHub Actions runs install, Prisma generation, type checks, tests, and builds o
 - Admin privileges must be assigned only by trusted seed/admin tooling.
 - Protected operations must validate authorization in the API.
 
+### Authorization regression coverage
+
+The API test suite includes regression checks that:
+
+- unauthenticated booking-history and seat-hold release requests are rejected;
+- admin movie endpoints check the user's current database role and reject customer accounts;
+- booking history queries are scoped to the authenticated customer;
+- cancellation of another customer's booking is rejected without releasing its seat claims;
+- hold release queries are scoped to the authenticated customer and do not modify another customer's hold.
+
+These tests are automated regression coverage, not a substitute for a full endpoint-by-endpoint security review or production penetration testing. Run `npm test` and confirm the GitHub Actions CI checks pass for the related pull request.
+
 
 ## Five-minute seat holds
 
