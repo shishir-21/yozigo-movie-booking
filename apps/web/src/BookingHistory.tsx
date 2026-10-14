@@ -202,8 +202,8 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                   </article>
                 ))}
               </div>
-            )
-          }
+            )}
+          </>
         ) : null}
 
         {pendingCancellation && cancellationDetails && (
