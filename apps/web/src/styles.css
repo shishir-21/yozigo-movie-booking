@@ -272,3 +272,22 @@
 .hold-countdown-announcement.hold-countdown-warning,.selected-seat-summary.hold-countdown-warning{border-color:#f5bd6470;color:#f5d5a3}
 .hold-countdown-announcement.hold-countdown-urgent,.selected-seat-summary.hold-countdown-urgent{border-color:#ff8e8e80;color:#ffb5b5}
 .hold-countdown-announcement.hold-countdown-expired{color:#ffb5b5}
+
+
+/* Keyboard focus: keep interactive controls discoverable without forcing rings on pointer users. */
+:where(a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 3px solid #d5fd71;
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+
+  .seat-tile:focus-visible,
+  .auth-close:focus-visible {
+    forced-color-adjust: auto;
+  }
+}
