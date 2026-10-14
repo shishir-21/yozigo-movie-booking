@@ -380,3 +380,10 @@ Verify this behavior with `npm test`, `npm run lint`, `npm run build`, `npm run 
 ## Seat availability refresh and recovery
 
 The seat picker provides a **Refresh seats** action even when live seat events are connected. While refreshing, it keeps the last successful seat map visible. If a refresh fails, it warns that the displayed availability may be stale and offers a retry instead of replacing the map with an error-only screen. Initial-load errors remain distinct, and switching shows never presents the previous show's map as current. Seat holds and checkout are still validated by the API and database; the client-side map is not authoritative. See [the seat refresh recovery guide](docs/seat-refresh-recovery.md) for local verification steps. Payment remains mock-only.
+
+
+## Accessible seat-hold countdown
+
+The seat picker shows the remaining hold time as minutes and seconds. The countdown summary is not itself a live region, so assistive technology is not asked to announce every second. A separate polite status message changes at meaningful urgency thresholds (one minute remaining, 30 seconds remaining, and expiry). When one or more holds expire, the app removes them from the local selection, refreshes seat availability, and explains that the seats must be selected again if needed. The API/database remain authoritative for holds and checkout.
+
+Verify with `npm test`, `npm run lint`, `npm run build`, `npm run e2e:smoke`, and `npm run e2e:ops`. In the seat picker, select a seat and check the countdown, urgency styling, announcements at 60/30 seconds, and expired-hold recovery. Payment remains simulated only.
