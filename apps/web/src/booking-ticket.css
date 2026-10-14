@@ -31,7 +31,7 @@
 }
 
 @media screen {
-  .booking-cancel-confirm-backdrop { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; border-radius: inherit; background: rgb(7 9 13 / 78%); backdrop-filter: blur(5px); }
+  .booking-cancel-confirm-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; border-radius: inherit; background: rgb(7 9 13 / 78%); backdrop-filter: blur(5px); }
   .booking-cancel-confirm { width: min(100%, 440px); padding: 26px; border: 1px solid rgb(213 253 113 / 35%); border-radius: 8px; background: #171a1e; color: #f6f7f3; box-shadow: 0 24px 70px rgb(0 0 0 / 40%); }
   .booking-cancel-confirm h3 { margin: 8px 0 12px; font-size: 24px; }
   .booking-cancel-confirm p { line-height: 1.65; color: #d0d2cd; font-size: 13px; }
