@@ -2,6 +2,13 @@
   .booking-ticket-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .booking-print-button { border: 1px solid #d5fd71; border-radius: 3px; background: #d5fd71; color: #15180e; padding: 9px 13px; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
   .booking-print-button:disabled { opacity: .6; cursor: wait; }
+  .booking-history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .booking-history-toolbar .auth-intro { margin: 0; }
+  .booking-history-refresh { border: 1px solid #d5fd71; border-radius: 3px; background: transparent; color: inherit; padding: 9px 13px; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .booking-history-refresh:hover:not(:disabled) { background: #d5fd71; color: #15180e; }
+  .booking-history-refresh:disabled { opacity: .6; cursor: wait; }
+  .booking-refresh-status { margin: 12px 0; font-size: 12px; opacity: .8; }
+  .booking-history-refresh:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 }
 @media print {
   @page { size: auto; margin: 14mm; }

@@ -4,6 +4,7 @@ import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-c
 import './booking-ticket.css';
 import { filterBookings, type BookingHistoryFilter } from './booking-history-filter';
 import { bookingReference, formatBookingAmount, formatBookingDate } from './booking-ticket';
+import { getBookingHistoryLoadState } from './booking-history-refresh';
 
 interface BookingHistoryProps {
   token: string;
@@ -27,6 +28,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
     { value: 'CANCELLED', label: 'Cancelled' },
   ];
   const visibleBookings = filterBookings(bookings, activeFilter);
+  const loadState = getBookingHistoryLoadState({ loading, error, bookingCount: bookings.length });
 
   useEffect(() => {
     let active = true;
@@ -84,26 +86,45 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
         <button className="auth-close" type="button" aria-label="Close booking history" onClick={onClose}>×</button>
         <span className="section-kicker">YOUR YOZIGO ACCOUNT</span>
         <h2 id="booking-history-title">My bookings<span>.</span></h2>
-        <p className="auth-intro">Your confirmed cinema plans, all in one place.</p>
+        <div className="booking-history-toolbar">
+          <p className="auth-intro">Your confirmed cinema plans, all in one place.</p>
+          <button
+            type="button"
+            className="booking-history-refresh"
+            onClick={() => setReloadKey((value) => value + 1)}
+            disabled={loading || cancellingId !== null}
+            aria-label={loading ? 'Refreshing bookings' : 'Refresh bookings'}
+          >
+            {loading ? 'Refreshing…' : 'Refresh bookings'}
+          </button>
+        </div>
 
         {actionMessage && <p className="booking-action-message" role="status">{actionMessage}</p>}
         {actionError && <p className="catalogue-state catalogue-error" role="alert">{actionError}</p>}
 
-        {loading ? (
+        {loadState === 'refreshing' && <p className="booking-refresh-status" role="status">Refreshing your bookings. Your current list stays visible.</p>}
+        {loadState === 'refresh-error' && (
+          <p className="catalogue-state catalogue-error" role="alert">
+            We couldn't refresh your bookings. Your previously loaded list is still shown. {error}
+            <button type="button" onClick={() => setReloadKey((value) => value + 1)}>Try again</button>
+          </p>
+        )}
+
+        {loadState === 'initial-loading' ? (
           <p className="catalogue-state" role="status">Loading your bookings…</p>
-        ) : error ? (
+        ) : loadState === 'initial-error' ? (
           <div className="catalogue-state catalogue-error" role="alert">
             <p>{error}</p>
             <button type="button" onClick={() => setReloadKey((value) => value + 1)}>Try again</button>
           </div>
-        ) : bookings.length === 0 ? (
+        ) : loadState === 'empty' ? (
           <div className="booking-empty">
             <span aria-hidden="true">✳</span>
             <h3>No bookings yet</h3>
             <p>When you book a movie, your tickets will appear here.</p>
             <button type="button" className="auth-submit" onClick={onClose}>Explore movies</button>
           </div>
-        ) : (
+        ) : bookings.length > 0 ? (
           <>
             <div className="booking-history-filters" role="group" aria-label="Filter bookings">
               {filterOptions.map((option) => {
@@ -162,7 +183,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
               </div>
             )}
           </>
-        )}
+        ) : null}
       </section>
     </div>
   );
