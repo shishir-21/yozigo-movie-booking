@@ -6,7 +6,8 @@ The browser clients for authentication/account settings, movie browsing, seat av
 - Connection failures continue to use `NETWORK_ERROR`.
 - HTTP failures preserve the server's status and error code.
 - Authentication requests can receive an explicit `AbortSignal`; otherwise the request deadline is applied.
-- Do not interpret a checkout timeout as proof that the server did not commit the booking. The checkout API is idempotent; refresh **My bookings** before retrying an ambiguous request.
+- Do not interpret a checkout timeout or connection failure as proof that the server did not commit the booking. For an ambiguous checkout, the seat dialog shows a warning and an **Open My bookings** action. Booking history refreshes on open; check it before attempting checkout again.
+- Definitive HTTP errors such as a seat conflict continue to show the server's message instead of the ambiguous-outcome warning. The checkout API remains idempotent, but users should still check booking history before retrying.
 - Aborted requests are not rewritten as network failures.
 
 ## Verify locally
