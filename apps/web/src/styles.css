@@ -265,3 +265,10 @@
 .seat-live-status .seat-refresh-button{margin:0}
 .form-error .seat-refresh-button{margin-top:10px}
 @media(max-width:520px){.seat-live-status{align-items:flex-start;flex-direction:column}.seat-refresh-button{width:100%}}
+
+
+/* Seat-hold countdown urgency is visual; the separate live region announces only bucket changes. */
+.hold-countdown-announcement{margin:8px 0 12px;color:#b9b8bf;font-size:11px;line-height:1.5}
+.hold-countdown-announcement.hold-countdown-warning,.selected-seat-summary.hold-countdown-warning{border-color:#f5bd6470;color:#f5d5a3}
+.hold-countdown-announcement.hold-countdown-urgent,.selected-seat-summary.hold-countdown-urgent{border-color:#ff8e8e80;color:#ffb5b5}
+.hold-countdown-announcement.hold-countdown-expired{color:#ffb5b5}
