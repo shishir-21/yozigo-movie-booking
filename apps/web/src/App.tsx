@@ -9,6 +9,7 @@ import { getBookingConfirmationView } from './booking-confirmation';
 import { getCheckoutRecoveryMessage } from './checkout-recovery';
 import { seatEventConnectionLabel, type SeatEventConnectionState } from './seat-events';
 import { getCatalogueRequestOutcome } from './catalogue-refresh';
+import { getShowtimeRequestOutcome } from './showtime-refresh';
 import BookingHistory from './BookingHistory';
 import AdminManagement from './AdminManagement';
 import AccountSettings from './AccountSettings';
@@ -36,7 +37,10 @@ export default function App() {
   const [showtimeMovieId, setShowtimeMovieId] = useState<string | null>(null);
   const [showtimeOptions, setShowtimeOptions] = useState<MovieShow[]>([]);
   const [showtimesLoading, setShowtimesLoading] = useState(false);
+  const [showtimesRefreshing, setShowtimesRefreshing] = useState(false);
+  const [showtimesHasLoaded, setShowtimesHasLoaded] = useState(false);
   const [showtimesError, setShowtimesError] = useState<string | null>(null);
+  const [showtimesRefreshError, setShowtimesRefreshError] = useState<string | null>(null);
   const [showtimesReload, setShowtimesReload] = useState(0);
   const [token, setToken] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
@@ -64,6 +68,14 @@ export default function App() {
   const [bookingHistoryOpen, setBookingHistoryOpen] = useState(false);
   const [adminManagementOpen, setAdminManagementOpen] = useState(false);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const showtimesOutcome = getShowtimeRequestOutcome({
+    hasLoaded: showtimesHasLoaded,
+    loading: showtimesLoading,
+    refreshing: showtimesRefreshing,
+    initialError: showtimesError,
+    refreshError: showtimesRefreshError,
+    showCount: showtimeOptions.length,
+  });
   const catalogueOutcome = getCatalogueRequestOutcome({
     hasLoaded: moviesHasLoaded,
     loading: moviesLoading,
@@ -155,14 +167,42 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!showtimeMovieId) { setShowtimeOptions([]); setShowtimesError(null); return; }
+    if (!showtimeMovieId) {
+      setShowtimeOptions([]);
+      setShowtimesLoading(false);
+      setShowtimesRefreshing(false);
+      setShowtimesHasLoaded(false);
+      setShowtimesError(null);
+      setShowtimesRefreshError(null);
+      return;
+    }
     let active = true;
-    setShowtimesLoading(true);
-    setShowtimesError(null);
+    if (showtimesHasLoaded) {
+      setShowtimesRefreshing(true);
+      setShowtimesRefreshError(null);
+    } else {
+      setShowtimesLoading(true);
+      setShowtimesError(null);
+    }
     getMovieShows(showtimeMovieId)
-      .then(({ shows }) => { if (active) setShowtimeOptions(shows); })
-      .catch((error: unknown) => { if (active) setShowtimesError(error instanceof Error ? error.message : 'Unable to load showtimes.'); })
-      .finally(() => { if (active) setShowtimesLoading(false); });
+      .then(({ shows }) => {
+        if (!active) return;
+        setShowtimeOptions(shows);
+        setShowtimesHasLoaded(true);
+        setShowtimesError(null);
+        setShowtimesRefreshError(null);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'Unable to load showtimes. Please try again.';
+        if (showtimesHasLoaded) setShowtimesRefreshError(message);
+        else setShowtimesError(message);
+      })
+      .finally(() => {
+        if (!active) return;
+        setShowtimesLoading(false);
+        setShowtimesRefreshing(false);
+      });
     return () => { active = false; };
   }, [showtimeMovieId, showtimesReload]);
 
@@ -301,7 +341,7 @@ export default function App() {
             <div className="poster-wrap">{movie.posterUrl ? <img src={movie.posterUrl} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-label="Poster unavailable">Y.</div>}<span className="movie-tag">{movie.nextShow ? 'NOW SHOWING' : 'COMING SOON'}</span><span className="poster-index">{String(index + 1).padStart(2, '0')}</span></div>
             <div className="movie-info"><div className="movie-title-row"><h3>{movie.title}</h3><span className="rating">{movie.rating}</span></div><p className="genre">{movie.description || 'Discover this film at Yozigo.'}</p><div className="movie-details"><span>{movie.language}</span><span className="detail-dot" /><span>{Math.floor(movie.durationMin / 60)}h {String(movie.durationMin % 60).padStart(2, '0')}m</span></div>
               {movie.nextShow && <div className="next-show"><span>Next: {formatShowDate(movie.nextShow.startsAt)}</span><strong>{formatPrice(movie.nextShow.pricePaise)}</strong></div>}
-              <button type="button" className="seat-map-button" disabled={!movie.nextShow} onClick={() => { setShowtimeMovieId(movie.id); setShowtimesError(null); }}>Choose showtime <span>↗</span></button></div>
+              <button type="button" className="seat-map-button" disabled={!movie.nextShow} onClick={() => { setShowtimeOptions([]); setShowtimesHasLoaded(false); setShowtimesError(null); setShowtimesRefreshError(null); setShowtimesLoading(false); setShowtimesRefreshing(false); setShowtimeMovieId(movie.id); setShowtimesError(null); }}>Choose showtime <span>↗</span></button></div>
           </article>)}</div>
         )}
       </section>
@@ -319,7 +359,33 @@ export default function App() {
             <span className="section-kicker">PICK YOUR SCREENING</span>
             <h2 id="showtime-dialog-title">Choose a showtime<span>.</span></h2>
             <p className="auth-intro">Select a date and time to open the seat map. Prices are shown per ticket.</p>
-            {showtimesLoading ? <p className="catalogue-state" role="status">Loading upcoming showtimes…</p> : showtimesError ? <div className="catalogue-state catalogue-error" role="alert"><p>{showtimesError}</p><button type="button" onClick={() => setShowtimesReload((value) => value + 1)}>Try again</button></div> : showtimeOptions.length === 0 ? <p className="catalogue-state">There are no upcoming showtimes for this movie.</p> : <div className="showtime-options">{showtimeOptions.map((show) => <button key={show.id} type="button" className="showtime-option" onClick={() => { setShowtimeMovieId(null); setActiveHolds([]); setSelectedShowPricePaise(show.pricePaise); setBookingConfirmation(null); setSelectedShowId(show.id); }}><span>{formatShowDate(show.startsAt)}</span><strong>{formatPrice(show.pricePaise)}</strong><span className="showtime-cta">Choose seats ↗</span></button>)}</div>}
+            {showtimesOutcome === 'initial-loading' ? (
+              <p className="catalogue-state" role="status">Loading upcoming showtimes…</p>
+            ) : showtimesOutcome === 'initial-error' ? (
+              <div className="catalogue-state catalogue-error" role="alert">
+                <p>{showtimesError}</p>
+                <button type="button" onClick={() => setShowtimesReload((value) => value + 1)}>Try again</button>
+              </div>
+            ) : (
+              <>
+                <div className="showtime-refresh-toolbar">
+                  <p className="auth-intro">Choose a screening. Your current options stay visible during refresh.</p>
+                  <button type="button" className="showtime-refresh-button" onClick={() => setShowtimesReload((value) => value + 1)} disabled={showtimesRefreshing}>
+                    {showtimesRefreshing ? 'Refreshing…' : 'Refresh showtimes'}
+                  </button>
+                </div>
+                {showtimesOutcome === 'refreshing' && <p className="booking-refresh-status" role="status">Refreshing upcoming showtimes. Your current options remain available.</p>}
+                {showtimesOutcome === 'refresh-error' && (
+                  <div className="catalogue-state catalogue-error" role="alert">
+                    <p>We couldn’t refresh showtimes. Your previous options are still shown. {showtimesRefreshError}</p>
+                    <button type="button" onClick={() => setShowtimesReload((value) => value + 1)}>Try again</button>
+                  </div>
+                )}
+                {showtimesOutcome === 'empty' ? <p className="catalogue-state">There are no upcoming showtimes for this movie.</p> : (
+                  <div className="showtime-options">{showtimeOptions.map((show) => <button key={show.id} type="button" className="showtime-option" onClick={() => { setShowtimeMovieId(null); setActiveHolds([]); setSelectedShowPricePaise(show.pricePaise); setBookingConfirmation(null); setSelectedShowId(show.id); }}><span>{formatShowDate(show.startsAt)}</span><strong>{formatPrice(show.pricePaise)}</strong><span className="showtime-cta">Choose seats ↗</span></button>)}</div>
+                )}
+              </>
+            )}
           </section>
         </div>
       )}
