@@ -35,6 +35,7 @@ The project is delivered in complete implementation stages with end-to-end regre
 - [x] Bonus Flow 10: show-scoped live seat updates over Server-Sent Events
 - [x] Phase 2: admin analytics dashboard with date filters, confirmed-booking metrics, per-show occupancy, and CSV export
 - [x] Phase 3: production readiness hardening (rate limits, request tracing, CORS, operational documentation)
+- [x] Phase 4: expanded PostgreSQL-backed E2E regression for account profile/password security and multi-seat checkout/cancellation
 
 **Current limitation:** the catalogue uses fictional demo movies and upcoming shows. Checkout uses a clearly labeled mock payment only; it does not collect card data or charge real money. Real payment-provider integration and refunds are not implemented yet.
 
@@ -272,6 +273,19 @@ The suite uses Node.js 22+'s built-in `fetch` and creates uniquely named test cu
 
 To target another API instance, set `API_BASE_URL` before running the command. For example in PowerShell: `$env:API_BASE_URL = "http://localhost:4000"`. CI builds and starts `docker-compose.full.yml`, waits for the database readiness endpoint, runs this suite, and tears down the Compose stack even when a check fails. Checkout remains mock-only; no card data or real money is used.
 
+
+## Extended account and multi-seat regression
+
+The existing `npm run e2e:smoke` suite also exercises account settings and multi-seat booking against the real API and PostgreSQL database:
+
+- Updates the signed-in customer's display name and verifies the current-user response.
+- Rejects invalid profile names and incorrect current passwords.
+- Changes a password, verifies the old password can no longer log in, and verifies the new password works.
+- Holds two seats and confirms them in one booking with a server-calculated total.
+- Retries the multi-seat checkout and verifies it returns the original booking instead of creating a duplicate.
+- Cancels the multi-seat booking and verifies both seats become available again.
+
+Run the suite using the isolated full-stack Docker Compose environment described above. It uses unique test accounts, introduces no additional npm dependencies, and retains mock-only checkout; no card data or real payment is used.
 
 ## Full-stack Docker demo
 
