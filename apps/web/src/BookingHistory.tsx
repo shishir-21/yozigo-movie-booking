@@ -3,31 +3,11 @@ import { ApiError } from './auth-client';
 import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-client';
 import './booking-ticket.css';
 import { filterBookings, type BookingHistoryFilter } from './booking-history-filter';
+import { bookingReference, formatBookingAmount, formatBookingDate } from './booking-ticket';
 
 interface BookingHistoryProps {
   token: string;
   onClose: () => void;
-}
-
-function formatBookingDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date unavailable';
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
-
-function formatAmount(amountPaise: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  }).format(amountPaise / 100);
-}
-
-function bookingReference(id: string): string {
-  return id.slice(0, 8).toUpperCase();
 }
 
 export default function BookingHistory({ token, onClose }: BookingHistoryProps) {
@@ -147,39 +127,39 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                 <p>Try another filter to see your bookings.</p>
               </div>
             ) : (
-          <div className="booking-list">
-            {visibleBookings.map((booking) => (
-              <article className={`booking-card${printingBookingId === booking.id ? " booking-card-printing" : ""}`} key={booking.id}>
-                <div className="booking-card-heading">
-                  <div>
-                    <span className="section-kicker">BOOKING {bookingReference(booking.id)}</span>
-                    <h3>{booking.movieTitle}</h3>
-                  </div>
-                  <span className={`booking-status ${booking.status.toLowerCase()}`}>{booking.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}</span>
-                </div>
-                <div className="booking-meta">
-                  <span><strong>Showtime</strong>{formatBookingDate(booking.startsAt)}</span>
-                  <span><strong>Booked</strong>{formatBookingDate(booking.createdAt)}</span>
-                  <span><strong>Seats</strong>{booking.seats.length ? booking.seats.map((seat) => `${seat.row}${seat.number}`).join(', ') : 'Not available'}</span>
-                  <span><strong>Total</strong>{formatAmount(booking.amountPaise)}</span>
-                </div>
-                <p className="booking-show-id">Show reference: {booking.showId.slice(0, 8).toUpperCase()}</p>
-                {booking.status === 'CONFIRMED' && (
-                  <div className="booking-ticket-actions">
-                    <button type="button" className="booking-print-button" onClick={() => setPrintingBookingId(booking.id)} disabled={printingBookingId !== null}>Print ticket</button>
-                    <button
-                    type="button"
-                    className="booking-cancel-button"
-                    onClick={() => void handleCancel(booking)}
-                    disabled={cancellingId !== null}
-                  >
-                    {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
+              <div className="booking-list">
+                {visibleBookings.map((booking) => (
+                  <article className={`booking-card${printingBookingId === booking.id ? ' booking-card-printing' : ''}`} key={booking.id}>
+                    <div className="booking-card-heading">
+                      <div>
+                        <span className="section-kicker">BOOKING {bookingReference(booking.id)}</span>
+                        <h3>{booking.movieTitle}</h3>
+                      </div>
+                      <span className={`booking-status ${booking.status.toLowerCase()}`}>{booking.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}</span>
+                    </div>
+                    <div className="booking-meta">
+                      <span><strong>Showtime</strong>{formatBookingDate(booking.startsAt)}</span>
+                      <span><strong>Booked</strong>{formatBookingDate(booking.createdAt)}</span>
+                      <span><strong>Seats</strong>{booking.seats.length ? booking.seats.map((seat) => `${seat.row}${seat.number}`).join(', ') : 'Not available'}</span>
+                      <span><strong>Total</strong>{formatBookingAmount(booking.amountPaise)}</span>
+                    </div>
+                    <p className="booking-show-id">Show reference: {booking.showId.slice(0, 8).toUpperCase()}</p>
+                    {booking.status === 'CONFIRMED' && (
+                      <div className="booking-ticket-actions">
+                        <button type="button" className="booking-print-button" onClick={() => setPrintingBookingId(booking.id)} disabled={printingBookingId !== null}>Print ticket</button>
+                        <button
+                          type="button"
+                          className="booking-cancel-button"
+                          onClick={() => void handleCancel(booking)}
+                          disabled={cancellingId !== null}
+                        >
+                          {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
             )}
           </>
         )}
