@@ -368,3 +368,10 @@ The My bookings page confirms cancellations in an in-app accessible dialog showi
 ## Movie catalogue refresh and recovery
 
 The catalogue has a **Refresh films** action. While it reloads, the last loaded film cards remain visible and current search/filter/sort selections are preserved. If refresh fails, the page shows an accessible warning and retry action without replacing the existing list with an error-only or empty state. Initial-load errors remain separate. See [the catalogue refresh guide](docs/movie-catalogue-refresh.md) for the manual recovery checklist.
+
+
+## Showtime refresh and recovery
+
+The showtime picker includes a **Refresh showtimes** action. While a refresh is in progress, previously loaded options remain visible and selectable. If refresh fails, the picker announces the failure and offers a retry without replacing the existing options. Initial-load failures remain distinct and offer their own retry action; the empty state is shown only after a successful response with no upcoming shows. Opening a different movie resets the picker so options from the previous movie are never shown for the new selection.
+
+Verify this behavior with `npm test`, `npm run lint`, `npm run build`, `npm run e2e:smoke`, and `npm run e2e:ops`. Also open two different movie showtime pickers, refresh after a successful load, and simulate an API/network failure to confirm the previous options remain visible. Payment stays simulated; do not enter real card details.
