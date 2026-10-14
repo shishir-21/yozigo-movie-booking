@@ -42,3 +42,15 @@ docker compose -f docker-compose.full.yml down
 ```
 
 Payment stays simulated. Do not enter real card details.
+
+
+## Focus indicator and high-contrast checks
+
+- [ ] Use Tab and Shift+Tab to move through links, buttons, text fields, selects, and controls inside every open dialog. Each keyboard-focused control has a clear, high-contrast outline with space around it.
+- [ ] Click a button or link with a mouse, then verify the focus indicator is not unnecessarily forced on pointer interaction in browsers that support `:focus-visible`.
+- [ ] Check focus visibility on available seat buttons, disabled seats, close buttons, booking actions, and the nested cancellation confirmation.
+- [ ] Enable Windows High Contrast / browser forced-colors emulation. Verify focused controls use the system highlight color and remain distinguishable.
+- [ ] Repeat at narrow mobile widths and inside scrollable dialogs; ensure focus outlines are not hidden behind adjacent content or clipped at the viewport edge.
+- [ ] Confirm reduced-motion behavior remains unchanged when navigating with the keyboard.
+
+The global focus treatment uses `:focus-visible`, so it is intended to emphasize keyboard navigation while respecting browser input-modality detection. Existing text-input focus styling remains in place. Manual checks are still needed to verify behavior across browsers and assistive technology.
