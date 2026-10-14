@@ -18,13 +18,14 @@ describe('trapDialogFocus', () => {
     expect(first.focus).toHaveBeenCalledOnce();
 
     const preventDefault = vi.fn();
-    Object.defineProperty(document, 'activeElement', { configurable: true, value: last });
+    vi.stubGlobal('document', { activeElement: last });
     keydown?.({ key: 'Tab', shiftKey: false, preventDefault } as unknown as KeyboardEvent);
     expect(preventDefault).toHaveBeenCalledOnce();
     expect(first.focus).toHaveBeenCalledTimes(2);
 
     cleanup();
     expect(dialog.removeEventListener).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 
   it('keeps focus on the dialog when no focusable controls exist', () => {
