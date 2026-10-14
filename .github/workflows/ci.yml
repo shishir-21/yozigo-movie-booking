@@ -45,6 +45,11 @@ jobs:
         run: npm run e2e:smoke
         env:
           API_BASE_URL: http://localhost:4000
+      - name: Run operational security regression
+        run: npm run e2e:ops
+        env:
+          API_BASE_URL: http://localhost:4000
+          WEB_ORIGIN: http://localhost:8080
       - name: Stop full-stack services
         if: always()
         run: docker compose -f docker-compose.full.yml down --volumes --remove-orphans
