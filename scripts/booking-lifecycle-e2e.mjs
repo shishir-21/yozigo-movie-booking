@@ -49,6 +49,56 @@ async function registerCustomer(label) {
   return { token: result.token };
 }
 
+
+async function openSeatEventStream(showId) {
+  const controller = new AbortController();
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/api/shows/${encodeURIComponent(showId)}/seat-events`, {
+      headers: { accept: 'text/event-stream' },
+      signal: controller.signal,
+    });
+  } catch {
+    throw new Error('open live seat event stream: could not connect to the API.');
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  assert(response.status === 200, `Live seat event stream returned HTTP ${response.status}.`);
+  assert(contentType.includes('text/event-stream'), 'Live seat event stream did not return text/event-stream.');
+  assert(response.body, 'Live seat event stream returned no response body.');
+  console.log('PASS open live seat event stream');
+  return { controller, reader: response.body.getReader(), decoder: new TextDecoder(), buffer: '' };
+}
+
+async function waitForSeatInvalidation(stream) {
+  let timeoutId;
+  const readEvent = (async () => {
+    while (true) {
+      const { done, value } = await stream.reader.read();
+      if (done) throw new Error('Live seat event stream closed before an invalidation event arrived.');
+      stream.buffer += stream.decoder.decode(value, { stream: true });
+      const eventStart = stream.buffer.indexOf('event: seat-map-invalidated');
+      if (eventStart < 0) continue;
+      const eventEnd = stream.buffer.indexOf('\\n\\n', eventStart);
+      if (eventEnd >= 0) return stream.buffer.slice(eventStart, eventEnd);
+    }
+  })();
+
+  try {
+    const event = await Promise.race([
+      readEvent,
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('No seat-map invalidation arrived within five seconds of the hold mutation.')), 5000);
+      }),
+    ]);
+    assert(/data:\\s*\\{\\}/.test(event), 'Seat invalidation event should contain an empty JSON payload.');
+    assert(!/(email|customer|payment|token)/i.test(event), 'Seat invalidation event exposed data beyond the minimal invalidation signal.');
+    console.log('PASS seat hold publishes a minimal live invalidation event');
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function main() {
   await call('API and database readiness', '/api/health/ready');
 
@@ -74,12 +124,40 @@ async function main() {
   const seat = seatMap?.seats?.find((candidate) => candidate.status === 'AVAILABLE');
   assert(seat?.id, 'The selected show has no available seats.');
 
-  const holdResponse = await call('owner holds an available seat', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
-    method: 'POST',
-    token: owner.token,
-    expectedStatus: 201,
-    body: { seatId: seat.id },
+  const reportPath = `/api/admin/shows/${encodeURIComponent(selectedShow.id)}/report`;
+  await call('admin analytics rejects unauthenticated requests', '/api/admin/analytics', {
+    expectedStatus: 401,
+    expectedCode: 'UNAUTHORIZED',
   });
+  await call('customer cannot access admin analytics', '/api/admin/analytics', {
+    token: owner.token,
+    expectedStatus: 403,
+    expectedCode: 'FORBIDDEN',
+  });
+  await call('admin show report rejects unauthenticated requests', reportPath, {
+    expectedStatus: 401,
+    expectedCode: 'UNAUTHORIZED',
+  });
+  await call('customer cannot access an admin show report', reportPath, {
+    token: owner.token,
+    expectedStatus: 403,
+    expectedCode: 'FORBIDDEN',
+  });
+
+  const seatEvents = await openSeatEventStream(selectedShow.id);
+  let holdResponse;
+  try {
+    holdResponse = await call('owner holds an available seat', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
+      method: 'POST',
+      token: owner.token,
+      expectedStatus: 201,
+      body: { seatId: seat.id },
+    });
+    await waitForSeatInvalidation(seatEvents);
+  } finally {
+    seatEvents.controller.abort();
+    await seatEvents.reader.cancel().catch(() => {});
+  }
   const holdId = holdResponse?.hold?.id;
   assert(holdId, 'The hold endpoint did not return a hold ID.');
 
