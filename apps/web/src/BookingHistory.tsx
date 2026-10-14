@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError } from './auth-client';
 import { cancelBooking, getMyBookings, type ConfirmedBooking } from './booking-client';
 import './booking-ticket.css';
@@ -7,6 +7,7 @@ import { bookingReference, formatBookingAmount, formatBookingDate } from './book
 import { getBookingHistoryLoadState } from './booking-history-refresh';
 import { getCancellationRecoveryMessage } from './cancellation-recovery';
 import { getCancellationConfirmationDetails } from './cancellation-confirmation';
+import { trapDialogFocus } from './dialog-focus';
 
 interface BookingHistoryProps {
   token: string;
@@ -24,6 +25,9 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   const [actionError, setActionError] = useState<string | null>(null);
   const [printingBookingId, setPrintingBookingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<BookingHistoryFilter>('ALL');
+  const bookingDialogRef = useRef<HTMLElement>(null);
+  const cancellationDialogRef = useRef<HTMLElement>(null);
+  const cancelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filterOptions: Array<{ value: BookingHistoryFilter; label: string }> = [
     { value: 'ALL', label: 'All bookings' },
     { value: 'UPCOMING', label: 'Upcoming' },
@@ -67,6 +71,13 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   }, [printingBookingId]);
 
   useEffect(() => {
+    const activeDialog = pendingCancellation ? cancellationDialogRef.current : bookingDialogRef.current;
+    if (!activeDialog) return;
+    const releaseFocus = trapDialogFocus(activeDialog);
+    return releaseFocus;
+  }, [pendingCancellation]);
+
+  useEffect(() => {
     if (!pendingCancellation || cancellingId) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setPendingCancellation(null);
@@ -74,6 +85,13 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [pendingCancellation, cancellingId]);
+
+  useEffect(() => {
+    if (pendingCancellation) return;
+    const trigger = cancelTriggerRef.current;
+    if (trigger?.isConnected) trigger.focus();
+    cancelTriggerRef.current = null;
+  }, [pendingCancellation]);
 
   async function confirmCancellation() {
     const booking = pendingCancellation;
@@ -103,8 +121,8 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
     <div className="auth-backdrop booking-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !pendingCancellation && !cancellingId) onClose();
     }}>
-      <section className="booking-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-history-title">
-        <button className="auth-close" type="button" aria-label="Close booking history" onClick={onClose}>×</button>
+      <section ref={bookingDialogRef} className="booking-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-history-title" aria-hidden={pendingCancellation ? 'true' : undefined}>
+        <button className="auth-close" type="button" aria-label="Close booking history" onClick={onClose} disabled={pendingCancellation !== null}>×</button>
         <span className="section-kicker">YOUR YOZIGO ACCOUNT</span>
         <h2 id="booking-history-title">My bookings<span>.</span></h2>
         <div className="booking-history-toolbar">
@@ -113,7 +131,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
             type="button"
             className="booking-history-refresh"
             onClick={() => setReloadKey((value) => value + 1)}
-            disabled={loading || cancellingId !== null}
+            disabled={loading || cancellingId !== null || pendingCancellation !== null}
             aria-label={loading ? 'Refreshing bookings' : 'Refresh bookings'}
           >
             {loading ? 'Refreshing…' : 'Refresh bookings'}
@@ -192,7 +210,10 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                         <button
                           type="button"
                           className="booking-cancel-button"
-                          onClick={() => setPendingCancellation(booking)}
+                          onClick={(event) => {
+                            cancelTriggerRef.current = event.currentTarget;
+                            setPendingCancellation(booking);
+                          }}
                           disabled={cancellingId !== null || pendingCancellation !== null}
                         >
                           {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
@@ -209,11 +230,13 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
         {pendingCancellation && cancellationDetails && (
           <div className="booking-cancel-confirm-backdrop">
             <section
+              ref={cancellationDialogRef}
               className="booking-cancel-confirm"
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="booking-cancel-confirm-title"
               aria-describedby="booking-cancel-confirm-description"
+              tabIndex={-1}
             >
               <span className="section-kicker">PLEASE CONFIRM</span>
               <h3 id="booking-cancel-confirm-title">Cancel this booking?</h3>
