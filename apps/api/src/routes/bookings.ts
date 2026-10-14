@@ -88,6 +88,7 @@ bookingsRouter.post('/shows/:showId/bookings', async (request: Request, response
       }
 
       const first = holds[0];
+      if (!first) throw Object.assign(new Error('HOLD_NOT_FOUND'), { code: 'HOLD_NOT_FOUND' });
       const booking = await tx.booking.create({
         data: {
           userId,
