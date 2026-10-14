@@ -5,6 +5,7 @@ import './booking-ticket.css';
 import { filterBookings, type BookingHistoryFilter } from './booking-history-filter';
 import { bookingReference, formatBookingAmount, formatBookingDate } from './booking-ticket';
 import { getBookingHistoryLoadState } from './booking-history-refresh';
+import { getCancellationRecoveryMessage } from './cancellation-recovery';
 
 interface BookingHistoryProps {
   token: string;
@@ -72,7 +73,13 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
       setActionMessage(result.message);
       setReloadKey((value) => value + 1);
     } catch (reason) {
-      setActionError(reason instanceof Error ? reason.message : 'Unable to cancel this booking.');
+      const recoveryMessage = getCancellationRecoveryMessage(reason);
+      if (recoveryMessage) {
+        setActionMessage(recoveryMessage);
+        setReloadKey((value) => value + 1);
+      } else {
+        setActionError(reason instanceof Error ? reason.message : 'Unable to cancel this booking.');
+      }
     } finally {
       setCancellingId(null);
     }
