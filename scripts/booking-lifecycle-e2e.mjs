@@ -79,7 +79,7 @@ async function waitForSeatInvalidation(stream) {
       stream.buffer += stream.decoder.decode(value, { stream: true });
       const eventStart = stream.buffer.indexOf('event: seat-map-invalidated');
       if (eventStart < 0) continue;
-      const eventEnd = stream.buffer.indexOf('\\n\\n', eventStart);
+      const eventEnd = stream.buffer.indexOf('\n\n', eventStart);
       if (eventEnd >= 0) return stream.buffer.slice(eventStart, eventEnd);
     }
   })();
@@ -91,7 +91,7 @@ async function waitForSeatInvalidation(stream) {
         timeoutId = setTimeout(() => reject(new Error('No seat-map invalidation arrived within five seconds of the hold mutation.')), 5000);
       }),
     ]);
-    assert(/data:\\s*\\{\\}/.test(event), 'Seat invalidation event should contain an empty JSON payload.');
+    assert(/data:\s*\{\}/.test(event), 'Seat invalidation event should contain an empty JSON payload.');
     assert(!/(email|customer|payment|token)/i.test(event), 'Seat invalidation event exposed data beyond the minimal invalidation signal.');
     console.log('PASS seat hold publishes a minimal live invalidation event');
   } finally {
