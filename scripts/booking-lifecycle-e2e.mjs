@@ -40,13 +40,14 @@ async function call(name, path, { method = 'GET', token, body, expectedStatus = 
 
 async function registerCustomer(label) {
   const email = `e2e-${label}-${randomUUID()}@example.com`;
+  const password = `E2E-test-${randomUUID()}-Aa1!`;
   const result = await call(`register ${label} customer`, '/api/auth/register', {
     method: 'POST',
     expectedStatus: 201,
-    body: { name: `E2E ${label}`, email, password: `E2E-test-${randomUUID()}-Aa1!` },
+    body: { name: `E2E ${label}`, email, password },
   });
   assert(result?.user?.role === 'CUSTOMER' && typeof result?.token === 'string', 'Registration did not return a customer session.');
-  return { token: result.token };
+  return { token: result.token, email, password };
 }
 
 
@@ -104,6 +105,51 @@ async function main() {
 
   const owner = await registerCustomer('owner');
   const other = await registerCustomer('other');
+
+  const profile = await call('customer can update their display name', '/api/auth/me', {
+    method: 'PATCH',
+    token: owner.token,
+    expectedStatus: 200,
+    body: { name: 'E2E Updated Owner' },
+  });
+  assert(profile?.user?.name === 'E2E Updated Owner' && profile.user.email === owner.email && profile.user.role === 'CUSTOMER', 'Profile update changed unexpected account fields.');
+  const currentUser = await call('updated profile is returned by current-user endpoint', '/api/auth/me', { token: owner.token });
+  assert(currentUser?.user?.name === 'E2E Updated Owner', 'The current-user endpoint did not return the updated display name.');
+  await call('profile update rejects an invalid display name', '/api/auth/me', {
+    method: 'PATCH',
+    token: owner.token,
+    expectedStatus: 400,
+    expectedCode: 'VALIDATION_ERROR',
+    body: { name: 'x' },
+  });
+  await call('password change rejects an incorrect current password', '/api/auth/me/password', {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 400,
+    expectedCode: 'CURRENT_PASSWORD_INCORRECT',
+    body: { currentPassword: 'not-the-current-password', newPassword: `New-E2E-${randomUUID()}-Bb2!` },
+  });
+  const newPassword = `New-E2E-${randomUUID()}-Bb2!`;
+  await call('customer can change their password', '/api/auth/me/password', {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 200,
+    body: { currentPassword: owner.password, newPassword },
+  });
+  await call('old password no longer authenticates', '/api/auth/login', {
+    method: 'POST',
+    expectedStatus: 401,
+    expectedCode: 'INVALID_CREDENTIALS',
+    body: { email: owner.email, password: owner.password },
+  });
+  const reauthenticated = await call('new password authenticates successfully', '/api/auth/login', {
+    method: 'POST',
+    expectedStatus: 200,
+    body: { email: owner.email, password: newPassword },
+  });
+  assert(reauthenticated?.user?.name === 'E2E Updated Owner' && reauthenticated?.user?.role === 'CUSTOMER', 'Login with the new password returned unexpected account data.');
+  owner.token = reauthenticated.token;
+  owner.password = newPassword;
 
   const catalogue = await call('browse movie catalogue', '/api/movies');
   assert(Array.isArray(catalogue?.movies) && catalogue.movies.length > 0, 'No seeded demo movies were returned.');
@@ -241,7 +287,51 @@ async function main() {
   const finalMap = await call('released hold makes the seat available', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
   assert(finalMap?.seats?.some((candidate) => candidate.id === seat.id && candidate.status === 'AVAILABLE'), 'Seat was not available after hold release.');
 
-  console.log(`All booking lifecycle E2E checks passed against ${baseUrl}. Payment remains simulated; no real money was charged.`);
+  const multiSeatMap = await call('load seats for multi-seat checkout', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
+  const multiSeats = multiSeatMap?.seats?.filter((candidate) => candidate.status === 'AVAILABLE').slice(0, 2) ?? [];
+  assert(multiSeats.length === 2, 'The selected show needs at least two available seats for multi-seat checkout.');
+  const multiHoldIds = [];
+  for (const [index, candidate] of multiSeats.entries()) {
+    const held = await call(`owner holds multi-seat checkout seat ${index + 1}`, `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
+      method: 'POST',
+      token: owner.token,
+      expectedStatus: 201,
+      body: { seatId: candidate.id },
+    });
+    assert(held?.hold?.id, `Multi-seat hold ${index + 1} did not return a hold ID.`);
+    multiHoldIds.push(held.hold.id);
+  }
+
+  const multiCheckout = await call('confirm a two-seat booking with mock payment', `/api/shows/${encodeURIComponent(selectedShow.id)}/bookings`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 201,
+    body: { holdIds: multiHoldIds, mockPaymentResult: 'SUCCESS' },
+  });
+  const multiBooking = multiCheckout?.booking;
+  assert(multiBooking?.id && multiBooking.status === 'CONFIRMED', 'Multi-seat checkout did not return a confirmed booking.');
+  assert(multiCheckout?.payment?.mode === 'MOCK', 'Multi-seat checkout did not identify payment as simulated.');
+  assert(multiBooking.seats?.length === 2, 'Multi-seat checkout did not confirm exactly two seats.');
+  assert(multiSeats.every((candidate) => multiBooking.seats.some((entry) => entry.id === candidate.id)), 'Multi-seat booking did not include both held seats.');
+  assert(multiBooking.amountPaise === selectedShow.pricePaise * 2, 'Multi-seat booking total does not equal the show price multiplied by two seats.');
+
+  const multiRetry = await call('multi-seat checkout retry is idempotent', `/api/shows/${encodeURIComponent(selectedShow.id)}/bookings`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 200,
+    body: { holdIds: multiHoldIds, mockPaymentResult: 'SUCCESS' },
+  });
+  assert(multiRetry?.booking?.id === multiBooking.id && multiRetry?.alreadyConfirmed === true, 'Multi-seat checkout retry created or returned a different booking.');
+
+  await call('owner can cancel the multi-seat booking', `/api/bookings/${encodeURIComponent(multiBooking.id)}/cancel`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 200,
+  });
+  const afterMultiCancel = await call('multi-seat cancellation releases both seats', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
+  assert(multiSeats.every((candidate) => afterMultiCancel?.seats?.some((entry) => entry.id === candidate.id && entry.status === 'AVAILABLE')), 'Cancelling a multi-seat booking did not release every seat.');
+
+  console.log(`All booking lifecycle, account security, and multi-seat E2E checks passed against ${baseUrl}. Payment remains simulated; no real money was charged.`);
 }
 
 main().catch((error) => {

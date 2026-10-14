@@ -48,6 +48,9 @@ The script uses Node.js built-in `fetch` and talks to the real API backed by Pos
 11. Unauthenticated requests to admin analytics and show reports receive `401 UNAUTHORIZED`.
 12. Authenticated customers receive `403 FORBIDDEN` when requesting admin analytics or a show report.
 13. A real seat hold emits a `seat-map-invalidated` event on the show-scoped SSE stream. The event payload is checked to remain an empty object without customer, payment, or token data.
+14. Customers can update their display name, invalid names are rejected, and the current-user endpoint returns the saved profile.
+15. Password changes reject an incorrect current password; after a successful change, the old password fails and the new password succeeds.
+16. A two-seat checkout creates one confirmed booking with the correct total, returns the same booking on retry, and cancellation releases both seats.
 
 The suite uses unique email addresses and does not print tokens or passwords. Test data remains in the full-stack demo database; use the isolated Compose stack rather than a production database.
 
