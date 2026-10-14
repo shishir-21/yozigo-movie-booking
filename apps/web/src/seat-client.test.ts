@@ -9,7 +9,7 @@ describe('show seat availability client', () => {
     const payload = { showId: 'show-1', seats: [{ id: 'seat-1', row: 'A', number: 1, status: 'AVAILABLE' as const }] };
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     await expect(getShowSeats('show/1')).resolves.toEqual(payload);
-    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/shows/show%2F1/seats', { headers: { Accept: 'application/json' } });
+    expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/shows/show%2F1/seats', expect.objectContaining({ headers: { Accept: 'application/json' }, signal: expect.any(AbortSignal) }));
   });
 
   it('surfaces missing-show API errors and network failures', async () => {
