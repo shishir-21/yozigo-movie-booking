@@ -6,6 +6,7 @@ import { filterBookings, type BookingHistoryFilter } from './booking-history-fil
 import { bookingReference, formatBookingAmount, formatBookingDate } from './booking-ticket';
 import { getBookingHistoryLoadState } from './booking-history-refresh';
 import { getCancellationRecoveryMessage } from './cancellation-recovery';
+import { getCancellationConfirmationDetails } from './cancellation-confirmation';
 
 interface BookingHistoryProps {
   token: string;
@@ -18,6 +19,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [pendingCancellation, setPendingCancellation] = useState<ConfirmedBooking | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [printingBookingId, setPrintingBookingId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
   ];
   const visibleBookings = filterBookings(bookings, activeFilter);
   const loadState = getBookingHistoryLoadState({ loading, error, bookingCount: bookings.length });
+  const cancellationDetails = pendingCancellation ? getCancellationConfirmationDetails(pendingCancellation) : null;
 
   useEffect(() => {
     let active = true;
@@ -63,8 +66,19 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
     return () => window.removeEventListener('afterprint', finishPrinting);
   }, [printingBookingId]);
 
-  async function handleCancel(booking: ConfirmedBooking) {
-    if (!window.confirm(`Cancel booking ${bookingReference(booking.id)}? This is only allowed more than two hours before the show.`)) return;
+  useEffect(() => {
+    if (!pendingCancellation || cancellingId) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPendingCancellation(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [pendingCancellation, cancellingId]);
+
+  async function confirmCancellation() {
+    const booking = pendingCancellation;
+    if (!booking || cancellingId) return;
+    setPendingCancellation(null);
     setCancellingId(booking.id);
     setActionMessage(null);
     setActionError(null);
@@ -87,7 +101,7 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
 
   return (
     <div className="auth-backdrop booking-backdrop" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
+      if (event.target === event.currentTarget && !pendingCancellation && !cancellingId) onClose();
     }}>
       <section className="booking-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-history-title">
         <button className="auth-close" type="button" aria-label="Close booking history" onClick={onClose}>×</button>
@@ -178,8 +192,8 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
                         <button
                           type="button"
                           className="booking-cancel-button"
-                          onClick={() => void handleCancel(booking)}
-                          disabled={cancellingId !== null}
+                          onClick={() => setPendingCancellation(booking)}
+                          disabled={cancellingId !== null || pendingCancellation !== null}
                         >
                           {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
                         </button>
@@ -191,6 +205,29 @@ export default function BookingHistory({ token, onClose }: BookingHistoryProps) 
             )}
           </>
         ) : null}
+
+        {pendingCancellation && cancellationDetails && (
+          <div className="booking-cancel-confirm-backdrop">
+            <section
+              className="booking-cancel-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="booking-cancel-confirm-title"
+              aria-describedby="booking-cancel-confirm-description"
+            >
+              <span className="section-kicker">PLEASE CONFIRM</span>
+              <h3 id="booking-cancel-confirm-title">Cancel this booking?</h3>
+              <p id="booking-cancel-confirm-description">
+                You are about to cancel <strong>{cancellationDetails.movieTitle}</strong> (booking {cancellationDetails.reference}) for {cancellationDetails.showtime}.
+                Cancellation is allowed only more than two hours before the showtime.
+              </p>
+              <div className="booking-cancel-confirm-actions">
+                <button type="button" className="booking-cancel-keep" autoFocus onClick={() => setPendingCancellation(null)}>Keep booking</button>
+                <button type="button" className="booking-cancel-confirm-submit" onClick={() => void confirmCancellation()}>Confirm cancellation</button>
+              </div>
+            </section>
+          </div>
+        )}
       </section>
     </div>
   );
