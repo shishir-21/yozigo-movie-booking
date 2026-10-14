@@ -353,3 +353,8 @@ The full-stack `npm run e2e:smoke` suite additionally verifies hold-request vali
 The web app provides a visible keyboard focus indicator, a skip link to the movie catalogue, and reduced-motion support. Check the manual keyboard and motion checklist in [docs/accessibility-smoke-checklist.md](docs/accessibility-smoke-checklist.md).
 
 Before release, verify keyboard-only navigation through sign-in, showtime selection, seat selection, mock checkout, booking history, account settings, and admin dialogs. This checklist complements automated lint, unit tests, build, and end-to-end checks; it is not a claim of formal WCAG certification.
+
+
+## Web API request timeout behavior
+
+The browser API clients use a 15-second request timeout so a stalled connection cannot leave a request pending indefinitely. Timed-out requests surface the stable client error code `REQUEST_TIMEOUT` and a retry-friendly message; connection failures retain `NETWORK_ERROR`, while HTTP status codes and server error codes are preserved. The auth client accepts an explicit caller-provided `AbortSignal` when needed. This is a client-side wait limit only: for booking checkout, a timeout does not prove that the server failed to complete the request. The checkout endpoint remains idempotent, so refresh booking history before retrying an ambiguous checkout. Payment remains simulated only.
