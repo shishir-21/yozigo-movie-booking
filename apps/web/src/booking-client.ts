@@ -17,6 +17,8 @@ export interface BookingConfirmation {
   alreadyConfirmed: boolean;
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:4000';
 
 async function bookingRequest<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
@@ -24,9 +26,14 @@ async function bookingRequest<T>(path: string, token: string, init: RequestInit 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new ApiError('The request took too long. Please try again.', 0, 'REQUEST_TIMEOUT');
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new ApiError('Unable to reach Yozigo. Check that the API server is running.', 0, 'NETWORK_ERROR');
   }
   const body = (await response.json().catch(() => null)) as { error?: { code?: string; message?: string } } | T | null;

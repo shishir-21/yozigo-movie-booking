@@ -17,6 +17,8 @@ export interface Movie {
   nextShow: MovieShow | null;
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:4000';
 
 async function movieRequest<T>(path: string): Promise<T> {
@@ -24,8 +26,13 @@ async function movieRequest<T>(path: string): Promise<T> {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new ApiError('The request took too long. Please try again.', 0, 'REQUEST_TIMEOUT');
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new ApiError('Unable to reach Yozigo. Check that the API server is running.', 0, 'NETWORK_ERROR');
   }
 
