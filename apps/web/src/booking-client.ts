@@ -37,10 +37,12 @@ async function bookingRequest<T>(path: string, token: string, init: RequestInit 
   return body as T;
 }
 
-export function confirmBooking(showId: string, holdId: string, token: string, mockPaymentResult: 'SUCCESS' | 'DECLINED' = 'SUCCESS'): Promise<BookingConfirmation> {
+export function confirmBooking(showId: string, holdIds: string | string[], token: string, mockPaymentResult: 'SUCCESS' | 'DECLINED' = 'SUCCESS'): Promise<BookingConfirmation> {
+  const ids = Array.isArray(holdIds) ? holdIds : [holdIds];
+  const body = ids.length === 1 ? { holdId: ids[0], mockPaymentResult } : { holdIds: ids, mockPaymentResult };
   return bookingRequest<BookingConfirmation>(`/api/shows/${encodeURIComponent(showId)}/bookings`, token, {
     method: 'POST',
-    body: JSON.stringify({ holdId, mockPaymentResult }),
+    body: JSON.stringify(body),
   });
 }
 

@@ -6,7 +6,7 @@ import express from 'express';
 const { tx, transaction } = vi.hoisted(() => ({
   tx: {
     booking: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), update: vi.fn() },
-    seatHold: { findFirst: vi.fn(), update: vi.fn() },
+    seatHold: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     seatClaim: { findUnique: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
   },
   transaction: vi.fn(),
@@ -57,24 +57,51 @@ describe('mock payment and booking confirmation', () => {
   });
 
   it('confirms an active owned hold and converts its claim atomically', async () => {
-    tx.booking.findUnique.mockResolvedValue(null);
-    tx.seatHold.findFirst.mockResolvedValue({ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: future, status: 'ACTIVE', show: { id: 'show-1', startsAt: future, pricePaise: 25000 } });
+    tx.seatHold.findMany.mockResolvedValue([{ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: future, status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } }]);
     tx.seatClaim.findUnique.mockResolvedValue({ id: 'claim-1', showId: 'show-1', seatId: 'seat-1', userId, kind: 'HOLD', expiresAt: future });
     tx.booking.create.mockResolvedValue(booking);
     tx.seatClaim.updateMany.mockResolvedValue({ count: 1 });
-    tx.seatHold.update.mockResolvedValue({ id: 'hold-1', status: 'CONVERTED' });
+    tx.seatHold.updateMany.mockResolvedValue({ count: 1 });
 
     const response = await request(app).post('/api/shows/show-1/bookings').set('Authorization', `Bearer ${token()}`).send({ holdId: 'hold-1' });
     expect(response.status).toBe(201);
     expect(response.body.booking).toMatchObject({ id: 'booking-1', status: 'CONFIRMED', amountPaise: 25000, movieTitle: 'Demo Movie', startsAt: future.toISOString() });
     expect(response.body.payment).toMatchObject({ mode: 'MOCK', status: 'SUCCEEDED' });
-    expect(tx.seatHold.update).toHaveBeenCalledWith({ where: { id: 'hold-1' }, data: { status: 'CONVERTED' } });
+    expect(tx.seatHold.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['hold-1'] }, userId, status: 'ACTIVE' }, data: { status: 'CONVERTED', bookingId: 'booking-1' } });
     expect(tx.seatClaim.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { kind: 'BOOKED', expiresAt: null } }));
   });
 
+  it('confirms up to six held seats in one booking and calculates the total', async () => {
+    tx.seatHold.findMany.mockResolvedValue([
+      { id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: future, status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } },
+      { id: 'hold-2', showId: 'show-1', seatId: 'seat-2', userId, expiresAt: future, status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } },
+    ]);
+    tx.seatClaim.findUnique.mockResolvedValue({ id: 'claim-1', userId, kind: 'HOLD', expiresAt: future });
+    tx.booking.create.mockResolvedValue({ ...booking, amountPaise: 50000, seats: [
+      { seatId: 'seat-1', seat: { row: 'A', number: 1 } },
+      { seatId: 'seat-2', seat: { row: 'A', number: 2 } },
+    ] });
+    tx.seatClaim.updateMany.mockResolvedValue({ count: 1 });
+    tx.seatHold.updateMany.mockResolvedValue({ count: 2 });
+
+    const response = await request(app).post('/api/shows/show-1/bookings')
+      .set('Authorization', `Bearer ${token()}`).send({ holdIds: ['hold-1', 'hold-2'] });
+
+    expect(response.status).toBe(201);
+    expect(response.body.booking.amountPaise).toBe(50000);
+    expect(response.body.booking.seats).toHaveLength(2);
+    expect(tx.booking.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ amountPaise: 50000, seats: { create: [
+        { seatId: 'seat-1', showId: 'show-1' }, { seatId: 'seat-2', showId: 'show-1' },
+      ] } }),
+    }));
+    expect(tx.seatHold.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: { status: 'CONVERTED', bookingId: 'booking-1' },
+    }));
+  });
+
   it('rejects expired holds', async () => {
-    tx.booking.findUnique.mockResolvedValue(null);
-    tx.seatHold.findFirst.mockResolvedValue({ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: new Date(Date.now() - 1000), status: 'ACTIVE', show: { id: 'show-1', startsAt: future, pricePaise: 25000 } });
+    tx.seatHold.findMany.mockResolvedValue([{ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: new Date(Date.now() - 1000), status: 'ACTIVE', booking: null, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } }]);
     const response = await request(app).post('/api/shows/show-1/bookings').set('Authorization', `Bearer ${token()}`).send({ holdId: 'hold-1' });
     expect(response.status).toBe(409);
     expect(response.body.error.code).toBe('HOLD_EXPIRED');
@@ -82,7 +109,7 @@ describe('mock payment and booking confirmation', () => {
   });
 
   it('does not create a duplicate booking when a successful request is retried', async () => {
-    tx.booking.findUnique.mockResolvedValue(booking);
+    tx.seatHold.findMany.mockResolvedValue([{ id: 'hold-1', showId: 'show-1', seatId: 'seat-1', userId, expiresAt: future, status: 'CONVERTED', booking: { ...booking, show: { ...booking.show }, seats: booking.seats }, show: { id: 'show-1', startsAt: future, pricePaise: 25000, movie: { title: 'Demo Movie' } } }]);
     const response = await request(app).post('/api/shows/show-1/bookings').set('Authorization', `Bearer ${token()}`).send({ holdId: 'hold-1' });
     expect(response.status).toBe(200);
     expect(response.body.alreadyConfirmed).toBe(true);
@@ -90,8 +117,7 @@ describe('mock payment and booking confirmation', () => {
   });
 
   it('rejects a hold that belongs to another customer or does not exist', async () => {
-    tx.booking.findUnique.mockResolvedValue(null);
-    tx.seatHold.findFirst.mockResolvedValue(null);
+    tx.seatHold.findMany.mockResolvedValue([]);
     const response = await request(app).post('/api/shows/show-1/bookings').set('Authorization', `Bearer ${token()}`).send({ holdId: 'someone-elses-hold' });
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('HOLD_NOT_FOUND');

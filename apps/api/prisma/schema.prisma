@@ -94,7 +94,8 @@ model SeatHold {
   expiresAt DateTime
   status    HoldStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
-  booking   Booking?
+  bookingId String?
+  booking   Booking?    @relation(fields: [bookingId], references: [id], onDelete: Restrict)
 
   @@index([showId, seatId, expiresAt])
   @@index([userId, status, expiresAt])
@@ -111,8 +112,7 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   seats       BookingSeat[]
-  hold        SeatHold?     @relation(fields: [holdId], references: [id], onDelete: Restrict)
-  holdId      String?       @unique
+  holds       SeatHold[]
 
   @@index([userId, createdAt])
   @@index([showId, status])
