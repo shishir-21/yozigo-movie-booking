@@ -5,7 +5,7 @@ import { formatPrice, formatShowDate, getMovies, getMovieShows, type Movie, type
 import { getShowSeats, type ShowSeat } from './seat-client';
 import { createSeatHold, releaseSeatHold, type SeatHold } from './hold-client';
 import { confirmBooking, type BookingConfirmation } from './booking-client';
-import { bookingReference, formatBookingAmount, formatBookingDate } from './booking-ticket';
+import { getBookingConfirmationView } from './booking-confirmation';
 import BookingHistory from './BookingHistory';
 import AdminManagement from './AdminManagement';
 
@@ -288,19 +288,19 @@ export default function App() {
             {seatsLoading ? <p className="catalogue-state" role="status">Loading seat availability…</p> : seatsError ? <p className="form-error" role="alert">{seatsError}</p> : <div className="seat-grid" aria-label="Cinema seats">{showSeats.map((seat) => { const mine = activeHolds.some((hold) => hold.seatId === seat.id); const unavailable = seat.status !== "AVAILABLE" && !mine; return <button key={seat.id} type="button" disabled={unavailable || holdBusy || (activeHolds.length >= 6 && !mine)} className={"seat-tile " + (mine ? "held" : unavailable ? "unavailable" : "available")} aria-label={"Row " + seat.row + ", seat " + seat.number + (mine ? ", selected by you" : unavailable ? ", unavailable" : ", available")} onClick={async () => { setHoldError(null); if (!token || !user) { setHoldError("Please sign in before selecting seats."); openAuth("login"); return; } setHoldBusy(true); try { if (mine) { const existing = activeHolds.find((hold) => hold.seatId === seat.id); if (existing) { await releaseSeatHold(selectedShowId, existing.id, token); setActiveHolds((current) => current.filter((hold) => hold.id !== existing.id)); } } else { const result = await createSeatHold(selectedShowId, seat.id, token); setActiveHolds((current) => current.length < 6 ? [...current, result.hold] : current); } setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to update this seat selection."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>{seat.row}{seat.number}</button>; })}</div>}
             <p className="seat-footnote">A seat hold lasts five minutes and expires automatically.</p>{activeHolds.length > 0 && <><div className="selected-seat-summary" role="status"><span>{activeHolds.length} seat{activeHolds.length === 1 ? '' : 's'} selected: {activeHolds.map((hold) => { const seat = showSeats.find((item) => item.id === hold.seatId); return seat ? seat.row + seat.number : hold.seatId; }).join(', ')}</span><strong>{formatPrice(selectedShowPricePaise * activeHolds.length)}</strong><small>Hold expires in {Math.floor(holdSeconds / 60)}:{String(holdSeconds % 60).padStart(2, "0")}. Maximum 6 seats per booking.</small></div><div className="hold-status"><span>{activeHolds.length} seat{activeHolds.length === 1 ? '' : 's'} held</span><button type="button" disabled={holdBusy || checkoutBusy} onClick={async () => { if (!token) return; setHoldBusy(true); setHoldError(null); try { await Promise.all(activeHolds.map((hold) => releaseSeatHold(selectedShowId, hold.id, token))); setActiveHolds([]); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to release selected seats."); setSeatReload((value) => value + 1); } finally { setHoldBusy(false); } }}>Release selected seats</button></div><button className="mock-checkout" type="button" disabled={checkoutBusy || holdSeconds === 0 || !token} onClick={async () => { if (!token) return; setCheckoutBusy(true); setHoldError(null); setBookingConfirmation(null); try { const result = await confirmBooking(selectedShowId, activeHolds.map((hold) => hold.id), token); setBookingConfirmation(result); setActiveHolds([]); setSeatReload((value) => value + 1); } catch (error) { setHoldError(error instanceof Error ? error.message : "Unable to confirm this booking."); setSeatReload((value) => value + 1); } finally { setCheckoutBusy(false); } }}>{checkoutBusy ? "Confirming demo booking…" : `Confirm ${activeHolds.length} seat${activeHolds.length === 1 ? '' : 's'} with demo payment`}</button><p className="field-hint">Demo only. No card details or real payment are collected.</p></>}{bookingConfirmation && (() => {
               const booking = bookingConfirmation.booking;
-              const seatLabels = booking.seats.map((seat) => `${seat.row}${seat.number}`);
+              const confirmationView = getBookingConfirmationView(bookingConfirmation);
               return (
                 <section className="booking-confirmation" role="status" aria-labelledby="booking-confirmation-title">
                   <span className="booking-confirmation-kicker"><span aria-hidden="true">✓</span> BOOKING CONFIRMED</span>
                   <h3 id="booking-confirmation-title">You're all set.</h3>
-                  <p className="booking-confirmation-reference">Booking reference <strong>{bookingReference(booking.id)}</strong></p>
+                  <p className="booking-confirmation-reference">Booking reference <strong>{confirmationView.reference}</strong></p>
                   <dl className="booking-confirmation-details">
-                    <div><dt>Movie</dt><dd>{booking.movieTitle || 'Movie details unavailable'}</dd></div>
-                    <div><dt>Showtime</dt><dd>{formatBookingDate(booking.startsAt)}</dd></div>
-                    <div><dt>Seats</dt><dd>{seatLabels.length ? seatLabels.join(', ') : 'Seat details unavailable'}</dd></div>
-                    <div><dt>Total</dt><dd>{formatBookingAmount(booking.amountPaise)}</dd></div>
+                    <div><dt>Movie</dt><dd>{confirmationView.movieTitle}</dd></div>
+                    <div><dt>Showtime</dt><dd>{confirmationView.showtime}</dd></div>
+                    <div><dt>Seats</dt><dd>{confirmationView.seats}</dd></div>
+                    <div><dt>Total</dt><dd>{confirmationView.total}</dd></div>
                   </dl>
-                  <p className="booking-confirmation-payment">Demo payment confirmed. No real money was charged.</p>
+                  <p className="booking-confirmation-payment">{confirmationView.paymentMessage}</p>
                   {bookingConfirmation.alreadyConfirmed && <p className="booking-confirmation-note">This is your existing confirmed booking.</p>}
                   <div className="booking-confirmation-actions">
                     <button type="button" className="auth-submit" onClick={() => { setBookingHistoryOpen(true); setSelectedShowId(null); setBookingConfirmation(null); }}>View my bookings</button>
