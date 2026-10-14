@@ -30,7 +30,7 @@ jobs:
         run: docker build -f apps/web/Dockerfile --build-arg VITE_API_BASE_URL=/ -t yozigo-web:ci .
 
       - name: Scan API image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: yozigo-api:ci
           format: table
@@ -40,7 +40,7 @@ jobs:
           exit-code: "0"
 
       - name: Scan web image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: yozigo-web:ci
           format: table
