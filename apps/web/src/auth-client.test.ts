@@ -78,4 +78,11 @@ describe('authentication API client', () => {
     await expect(login({ email: 'customer@example.com', password: 'password' }))
       .rejects.toMatchObject({ message: 'Unable to reach Yozigo. Check that the API server is running.', status: 0 });
   });
+
+  it('reports a stable timeout error when an auth request exceeds its deadline', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException('deadline exceeded', 'TimeoutError'));
+    await expect(login({ email: 'customer@example.com', password: 'password' }))
+      .rejects.toMatchObject({ status: 0, code: 'REQUEST_TIMEOUT', message: 'The request took too long. Please try again.' });
+  });
+
 });
