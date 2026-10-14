@@ -341,3 +341,8 @@ Signed-in users can open **Account** from the navigation to update their display
 - Review Dependabot update PRs through the same CI process as application changes; do not merge dependency updates until required checks pass.
 - CodeQL results are available in the repository's **Security → Code scanning** area when code scanning is available/enabled for the repository. Repository settings and plan availability can affect whether findings appear there.
 - These automated checks complement, but do not replace, dependency review, manual security review, secret management, and production hardening.
+
+
+## Booking edge-case regression
+
+The full-stack `npm run e2e:smoke` suite additionally verifies hold-request validation, idempotent repeated holds, duplicate hold-ID rejection, and multi-seat checkout atomicity. If one hold is released before checkout, the API must reject the entire checkout, create no partial booking, preserve the remaining active hold, and leave the seat map consistent. The test then cleans up its holds. These checks use the real PostgreSQL-backed API and retain simulated-only checkout.

@@ -190,7 +190,15 @@ async function main() {
     expectedCode: 'FORBIDDEN',
   });
 
-  const seatEvents = await openSeatEventStream(selectedShow.id);
+  await call('hold request rejects a missing seat ID', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 400,
+    expectedCode: 'VALIDATION_ERROR',
+    body: {},
+  });
+
+    const seatEvents = await openSeatEventStream(selectedShow.id);
   let holdResponse;
   try {
     holdResponse = await call('owner holds an available seat', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
@@ -206,6 +214,13 @@ async function main() {
   }
   const holdId = holdResponse?.hold?.id;
   assert(holdId, 'The hold endpoint did not return a hold ID.');
+  const repeatedHold = await call('repeating a hold request reuses the same active hold', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 201,
+    body: { seatId: seat.id },
+  });
+  assert(repeatedHold?.hold?.id === holdId, 'Repeating the same hold request created a duplicate hold.');
 
   await call('competing customer cannot hold the same seat', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
     method: 'POST',
@@ -302,6 +317,14 @@ async function main() {
     multiHoldIds.push(held.hold.id);
   }
 
+  await call('multi-seat checkout rejects duplicate hold IDs', `/api/shows/${encodeURIComponent(selectedShow.id)}/bookings`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 400,
+    expectedCode: 'VALIDATION_ERROR',
+    body: { holdIds: [multiHoldIds[0], multiHoldIds[0]], mockPaymentResult: 'SUCCESS' },
+  });
+
   const multiCheckout = await call('confirm a two-seat booking with mock payment', `/api/shows/${encodeURIComponent(selectedShow.id)}/bookings`, {
     method: 'POST',
     token: owner.token,
@@ -330,6 +353,45 @@ async function main() {
   });
   const afterMultiCancel = await call('multi-seat cancellation releases both seats', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
   assert(multiSeats.every((candidate) => afterMultiCancel?.seats?.some((entry) => entry.id === candidate.id && entry.status === 'AVAILABLE')), 'Cancelling a multi-seat booking did not release every seat.');
+
+  const atomicitySeats = afterMultiCancel?.seats?.filter((candidate) => candidate.status === 'AVAILABLE').slice(0, 2) ?? [];
+  assert(atomicitySeats.length === 2, 'Two available seats are required to verify failed multi-seat checkout atomicity.');
+  const atomicityHoldIds = [];
+  for (const [index, candidate] of atomicitySeats.entries()) {
+    const held = await call(`owner holds atomicity test seat ${index + 1}`, `/api/shows/${encodeURIComponent(selectedShow.id)}/holds`, {
+      method: 'POST',
+      token: owner.token,
+      expectedStatus: 201,
+      body: { seatId: candidate.id },
+    });
+    assert(held?.hold?.id, `Atomicity test hold ${index + 1} did not return a hold ID.`);
+    atomicityHoldIds.push(held.hold.id);
+  }
+
+  await call('release one hold before multi-seat checkout', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds/${encodeURIComponent(atomicityHoldIds[0])}`, {
+    method: 'DELETE',
+    token: owner.token,
+    expectedStatus: 200,
+  });
+  await call('multi-seat checkout rejects a released hold atomically', `/api/shows/${encodeURIComponent(selectedShow.id)}/bookings`, {
+    method: 'POST',
+    token: owner.token,
+    expectedStatus: 409,
+    expectedCode: 'HOLD_EXPIRED',
+    body: { holdIds: atomicityHoldIds, mockPaymentResult: 'SUCCESS' },
+  });
+  const afterAtomicFailure = await call('seat map remains consistent after rejected multi-seat checkout', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
+  assert(afterAtomicFailure?.seats?.some((candidate) => candidate.id === atomicitySeats[0].id && candidate.status === 'AVAILABLE'), 'The previously released seat was not available after failed checkout.');
+  assert(afterAtomicFailure?.seats?.some((candidate) => candidate.id === atomicitySeats[1].id && candidate.status !== 'AVAILABLE'), 'The other active hold was unexpectedly released by failed checkout.');
+  const historyAfterAtomicFailure = await call('failed multi-seat checkout creates no partial booking', '/api/bookings/me', { token: owner.token });
+  assert(!historyAfterAtomicFailure?.bookings?.some((entry) => entry.status === 'CONFIRMED' && entry.seats?.some((bookedSeat) => atomicitySeats.some((candidate) => candidate.id === bookedSeat.id))), 'A failed multi-seat checkout unexpectedly created a confirmed booking.');
+  await call('owner can release remaining atomicity-test hold', `/api/shows/${encodeURIComponent(selectedShow.id)}/holds/${encodeURIComponent(atomicityHoldIds[1])}`, {
+    method: 'DELETE',
+    token: owner.token,
+    expectedStatus: 200,
+  });
+  const finalAtomicityMap = await call('atomicity-test seats are available after cleanup', `/api/shows/${encodeURIComponent(selectedShow.id)}/seats`);
+  assert(atomicitySeats.every((candidate) => finalAtomicityMap?.seats?.some((entry) => entry.id === candidate.id && entry.status === 'AVAILABLE')), 'Atomicity test cleanup did not release all seats.');
 
   console.log(`All booking lifecycle, account security, and multi-seat E2E checks passed against ${baseUrl}. Payment remains simulated; no real money was charged.`);
 }

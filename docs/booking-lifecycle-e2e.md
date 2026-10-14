@@ -51,6 +51,9 @@ The script uses Node.js built-in `fetch` and talks to the real API backed by Pos
 14. Customers can update their display name, invalid names are rejected, and the current-user endpoint returns the saved profile.
 15. Password changes reject an incorrect current password; after a successful change, the old password fails and the new password succeeds.
 16. A two-seat checkout creates one confirmed booking with the correct total, returns the same booking on retry, and cancellation releases both seats.
+17. Invalid hold requests and duplicate hold IDs are rejected with `400 VALIDATION_ERROR`.
+18. Repeating a hold request by its owner returns the same active hold rather than creating a second one.
+19. A multi-seat checkout with one released hold fails with `409 HOLD_EXPIRED`; no partial booking is created, the remaining active hold stays owned by the customer, and cleanup releases the test seats.
 
 The suite uses unique email addresses and does not print tokens or passwords. Test data remains in the full-stack demo database; use the isolated Compose stack rather than a production database.
 
@@ -59,3 +62,8 @@ The suite uses unique email addresses and does not print tokens or passwords. Te
 The CI workflow validates Compose, builds the full-stack images, starts the isolated services, waits for `/api/health/ready`, runs the lifecycle suite, and always tears down the containers and disposable database volume. A passing E2E run verifies this tested API/database lifecycle; it does not replace browser-level usability testing or prove that every possible booking scenario is defect-free.
 
 Payment remains simulated. The suite does not contact a payment provider, collect card details, or charge real money.
+
+
+## Booking edge-case and atomicity checks
+
+The E2E suite also verifies that malformed hold requests and duplicate multi-seat hold IDs fail validation, repeated hold requests reuse the existing active hold, and a checkout cannot partially confirm seats when one of its holds has been released. The atomicity check inspects the authoritative seat map and the customer's booking history, then releases any remaining test hold so the isolated demo database is left in a predictable state. These checks run through the same `npm run e2e:smoke` command and do not require extra packages or test-only API endpoints.
