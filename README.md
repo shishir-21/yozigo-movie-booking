@@ -346,3 +346,10 @@ Signed-in users can open **Account** from the navigation to update their display
 ## Booking edge-case regression
 
 The full-stack `npm run e2e:smoke` suite additionally verifies hold-request validation, idempotent repeated holds, duplicate hold-ID rejection, and multi-seat checkout atomicity. If one hold is released before checkout, the API must reject the entire checkout, create no partial booking, preserve the remaining active hold, and leave the seat map consistent. The test then cleans up its holds. These checks use the real PostgreSQL-backed API and retain simulated-only checkout.
+
+
+## Keyboard accessibility and motion preferences
+
+The web app provides a visible keyboard focus indicator, a skip link to the movie catalogue, and reduced-motion support. Check the manual keyboard and motion checklist in [docs/accessibility-smoke-checklist.md](docs/accessibility-smoke-checklist.md).
+
+Before release, verify keyboard-only navigation through sign-in, showtime selection, seat selection, mock checkout, booking history, account settings, and admin dialogs. This checklist complements automated lint, unit tests, build, and end-to-end checks; it is not a claim of formal WCAG certification.
