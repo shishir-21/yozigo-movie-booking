@@ -8,6 +8,7 @@ import { confirmBooking, type BookingConfirmation } from './booking-client';
 import { getBookingConfirmationView } from './booking-confirmation';
 import { getCheckoutRecoveryMessage } from './checkout-recovery';
 import { seatEventConnectionLabel, type SeatEventConnectionState } from './seat-events';
+import { getCatalogueRequestOutcome } from './catalogue-refresh';
 import BookingHistory from './BookingHistory';
 import AdminManagement from './AdminManagement';
 import AccountSettings from './AccountSettings';
@@ -24,7 +25,10 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [moviesLoading, setMoviesLoading] = useState(true);
+  const [moviesRefreshing, setMoviesRefreshing] = useState(false);
+  const [moviesHasLoaded, setMoviesHasLoaded] = useState(false);
   const [moviesError, setMoviesError] = useState<string | null>(null);
+  const [moviesRefreshError, setMoviesRefreshError] = useState<string | null>(null);
   const [movieSearch, setMovieSearch] = useState('');
   const [movieLanguage, setMovieLanguage] = useState('all');
   const [movieSort, setMovieSort] = useState<MovieSort>('featured');
@@ -60,6 +64,14 @@ export default function App() {
   const [bookingHistoryOpen, setBookingHistoryOpen] = useState(false);
   const [adminManagementOpen, setAdminManagementOpen] = useState(false);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const catalogueOutcome = getCatalogueRequestOutcome({
+    hasLoaded: moviesHasLoaded,
+    loading: moviesLoading,
+    refreshing: moviesRefreshing,
+    initialError: moviesError,
+    refreshError: moviesRefreshError,
+    movieCount: movies.length,
+  });
   const visibleMovies = filterMovies(movies, { query: movieSearch, language: movieLanguage, sort: movieSort });
   const availableLanguages = [...new Set(movies.map((movie) => movie.language.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
@@ -82,18 +94,32 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    if (moviesHasLoaded) {
+      setMoviesRefreshing(true);
+      setMoviesRefreshError(null);
+    } else {
+      setMoviesLoading(true);
+      setMoviesError(null);
+    }
     getMovies()
       .then(({ movies: results }) => {
         if (!active) return;
         setMovies(results);
+        setMoviesHasLoaded(true);
         setMoviesError(null);
+        setMoviesRefreshError(null);
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setMoviesError(error instanceof Error ? error.message : 'Unable to load movies. Please try again.');
+        const message = error instanceof Error ? error.message : 'Unable to load movies. Please try again.';
+        if (moviesHasLoaded) setMoviesRefreshError(message);
+        else setMoviesError(message);
       })
       .finally(() => {
-        if (active) setMoviesLoading(false);
+        if (active) {
+          setMoviesLoading(false);
+          setMoviesRefreshing(false);
+        }
       });
     return () => { active = false; };
   }, [movieReload]);
@@ -253,18 +279,20 @@ export default function App() {
         <div className="hero-meta"><span>01 / 03</span><span className="meta-line" /><span>THE CINEMA COLLECTION</span></div>
       </section>
       <section className="movies-section" id="movies">
-        <div className="section-heading"><div><span className="section-kicker">HANDPICKED FOR YOU</span><h2>Now showing<span>.</span></h2></div><span className="catalogue-count">{moviesLoading ? 'Loading films…' : `${visibleMovies.length} of ${movies.length} films`}</span></div>
-        {!moviesLoading && !moviesError && movies.length > 0 && <div className="catalogue-controls" aria-label="Movie catalogue filters">
+        <div className="section-heading"><div><span className="section-kicker">HANDPICKED FOR YOU</span><h2>Now showing<span>.</span></h2></div><div className="catalogue-heading-actions"><span className="catalogue-count">{catalogueOutcome === 'initial-loading' ? 'Loading films…' : moviesRefreshing ? 'Refreshing films…' : `${visibleMovies.length} of ${movies.length} films`}</span>{moviesHasLoaded && <button className="clear-filters" type="button" onClick={() => { setMoviesRefreshError(null); setMovieReload((value) => value + 1); }} disabled={moviesRefreshing}>{moviesRefreshing ? 'Refreshing…' : 'Refresh films'}</button>}</div></div>
+        {catalogueOutcome === 'refresh-error' && <div className="catalogue-state catalogue-error" role="alert"><p>We couldn’t refresh the catalogue. Your previously loaded films are still shown. {moviesRefreshError}</p><button type="button" onClick={() => { setMoviesRefreshError(null); setMovieReload((value) => value + 1); }}>Try again</button></div>}
+        {moviesHasLoaded && moviesRefreshing && <p className="catalogue-refresh-status" role="status" aria-live="polite">Refreshing the movie catalogue. Your current results remain available.</p>}
+        {catalogueOutcome !== 'initial-loading' && catalogueOutcome !== 'initial-error' && movies.length > 0 && <div className="catalogue-controls" aria-label="Movie catalogue filters">
           <label className="catalogue-search"><span>Search films</span><input type="search" value={movieSearch} onChange={(event) => setMovieSearch(event.target.value)} placeholder="Search by title…" /></label>
           <label><span>Language</span><select value={movieLanguage} onChange={(event) => setMovieLanguage(event.target.value)}><option value="all">All languages</option>{availableLanguages.map((language) => <option key={language} value={language}>{language}</option>)}</select></label>
           <label><span>Sort by</span><select value={movieSort} onChange={(event) => setMovieSort(event.target.value as MovieSort)}><option value="featured">Featured</option><option value="title">Title (A–Z)</option><option value="showtime">Next showtime</option></select></label>
           {(movieSearch || movieLanguage !== 'all' || movieSort !== 'featured') && <button className="clear-filters" type="button" onClick={() => { setMovieSearch(''); setMovieLanguage('all'); setMovieSort('featured'); }}>Clear filters</button>}
         </div>}
-        {moviesLoading ? (
+        {catalogueOutcome === 'initial-loading' ? (
           <p className="catalogue-state" role="status">Loading movies from the cinema catalogue…</p>
-        ) : moviesError ? (
+        ) : catalogueOutcome === 'initial-error' ? (
           <div className="catalogue-state catalogue-error" role="alert"><p>{moviesError}</p><button type="button" onClick={() => { setMoviesLoading(true); setMovieReload((value) => value + 1); }}>Try again</button></div>
-        ) : movies.length === 0 ? (
+        ) : catalogueOutcome === 'empty' ? (
           <p className="catalogue-state">No movies are available right now. Please check back soon.</p>
         ) : visibleMovies.length === 0 ? (
           <div className="catalogue-state catalogue-empty"><p>No films match your search.</p><button type="button" onClick={() => { setMovieSearch(''); setMovieLanguage('all'); setMovieSort('featured'); }}>Clear filters</button></div>
